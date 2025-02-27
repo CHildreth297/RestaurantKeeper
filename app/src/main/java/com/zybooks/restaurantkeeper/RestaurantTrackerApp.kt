@@ -8,6 +8,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,9 +33,14 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import coil.compose.AsyncImage
+import com.zybooks.restaurantkeeper.ui.theme.Purple40
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 
 @Composable
@@ -64,6 +71,88 @@ fun EntryScreen(
     // date formatter
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMMM d, yyyy") }
 
+    if (showDatePicker) {
+        // Initialize with the current date, properly accounting for timezone
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = date
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        )
+
+        Dialog(
+            onDismissRequest = { showDatePicker = false }
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // calendar
+                    DatePicker(
+                        state = datePickerState,
+                        showModeToggle = false
+                    )
+
+                    // separate the calendar from buttons
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // button row with ample space
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) { // cancel button
+                        Button(
+                            onClick = { showDatePicker = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Text(
+                                "Cancel",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // ok button
+                        Button(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    date = Instant.ofEpochMilli(millis)
+                                        .atZone(ZoneId.systemDefault())
+                                        .toLocalDate()
+                                    // time returned UTC time, TODO: would want to have another solution besides a hardcoded add day
+                                    date = date.plusDays(1)
+                                }
+                                showDatePicker = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                            modifier = Modifier.padding(2.dp)
+                        ) {
+                            Text(
+                                "OK",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Column(
         // modifier to control composable's size, behavior, and appearance
         modifier = Modifier
@@ -75,13 +164,15 @@ fun EntryScreen(
         TextField(
             value = title,
             onValueChange = { title = it },
-            placeholder = { Text("Enter title") },
+            placeholder = {
+                Text(
+                    "Enter title",
+                    fontSize = 42.sp,
+                    color = Color.Gray.copy(alpha = 0.5f))},
             textStyle = TextStyle(fontSize = 42.sp, fontWeight = FontWeight.Bold),
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = MaterialTheme.colorScheme.background,
                 focusedContainerColor = MaterialTheme.colorScheme.background,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.background,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary
             ),
             singleLine = true,
             maxLines = 1,
@@ -108,9 +199,16 @@ fun EntryScreen(
             onValueChange = { },
             label = { Text("Date") },
             readOnly = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showDatePicker = true }
+            modifier = Modifier.fillMaxWidth(),
+            interactionSource = remember { MutableInteractionSource() }
+                .also { interactionSource -> LaunchedEffect(interactionSource) {
+                    interactionSource.interactions.collect {
+                        if (it is PressInteraction.Release) {
+                            showDatePicker = true
+                        }
+                    }
+
+                }}
         )
 
         Spacer(modifier = Modifier.height(16.dp))
