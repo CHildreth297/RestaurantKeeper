@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -36,6 +37,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,7 +49,7 @@ import com.zybooks.restaurantkeeper.ui.theme.Purple40
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun RestaurantTrackerApp() {
@@ -354,11 +356,11 @@ data class EntryData(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "Remember Your Food", fontSize = 20.sp) },
+                title = { Text(text = "My App", fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = { /* TODO: Open navigation drawer */ }) {
                         Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
@@ -392,9 +394,23 @@ fun HomeScreen() {
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            // TODO: Add main content here
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            if (viewModel.mediaItems.isEmpty()) {
+                Text(
+                    text = "You haven't made any entries or collections yet.\nClick the \"+\" to begin!",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                // TODO: Display media items
+            }
         }
+
     }
 }
 
