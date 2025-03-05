@@ -7,29 +7,44 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,11 +56,26 @@ import com.zybooks.restaurantkeeper.ui.theme.Purple40
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
-
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun RestaurantTrackerApp() {
-    // TODO: add routing
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "home") {
+        composable("home") {
+            HomeScreen(navController = navController)
+        }
+        composable("entry/{entryId}") { backStackEntry ->
+            val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
+            EntryScreen(entryId = entryId, onBack = { navController.popBackStack() })
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +83,8 @@ fun RestaurantTrackerApp() {
 @Composable
 fun EntryScreen(
     onSave: (EntryData) -> Unit = {},
+    entryId: Int?,
+    onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
@@ -71,219 +103,237 @@ fun EntryScreen(
     // date formatter
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMMM d, yyyy") }
 
-    if (showDatePicker) {
-        // Initialize with the current date, properly accounting for timezone
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = date
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
-        )
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(text = "Entry Details") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
 
-        Dialog(
-            onDismissRequest = { showDatePicker = false }
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
+        if (showDatePicker) {
+            // Initialize with the current date, properly accounting for timezone
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = date
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            )
 
+            Dialog(
+                onDismissRequest = { showDatePicker = false }
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 6.dp
+
                 ) {
-                    // calendar
-                    DatePicker(
-                        state = datePickerState,
-                        showModeToggle = false
-                    )
-
-                    // separate the calendar from buttons
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // button row with ample space
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) { // cancel button
-                        Button(
-                            onClick = { showDatePicker = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.padding(end = 6.dp)
-                        ) {
-                            Text(
-                                "Cancel",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // calendar
+                        DatePicker(
+                            state = datePickerState,
+                            showModeToggle = false
+                        )
 
-                        // ok button
-                        Button(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let { millis ->
-                                    date = Instant.ofEpochMilli(millis)
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()
-                                    // time returned UTC time, TODO: would want to have another solution besides a hardcoded add day
-                                    date = date.plusDays(1)
-                                }
-                                showDatePicker = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
-                            modifier = Modifier.padding(2.dp)
-                        ) {
-                            Text(
-                                "OK",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                        // separate the calendar from buttons
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // button row with ample space
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) { // cancel button
+                            Button(
+                                onClick = { showDatePicker = false },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.padding(end = 6.dp)
+                            ) {
+                                Text(
+                                    "Cancel",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // ok button
+                            Button(
+                                onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        date = Instant.ofEpochMilli(millis)
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate()
+                                        // time returned UTC time, TODO: would want to have another solution besides a hardcoded add day
+                                        date = date.plusDays(1)
+                                    }
+                                    showDatePicker = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                                modifier = Modifier.padding(2.dp)
+                            ) {
+                                Text(
+                                    "OK",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    Column(
-        // modifier to control composable's size, behavior, and appearance
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Title
-        TextField(
-            value = title,
-            onValueChange = { title = it },
-            placeholder = {
-                Text(
-                    "Enter title",
-                    fontSize = 42.sp,
-                    color = Color.Gray.copy(alpha = 0.5f))},
-            textStyle = TextStyle(fontSize = 42.sp, fontWeight = FontWeight.Bold),
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                focusedContainerColor = MaterialTheme.colorScheme.background,
-            ),
-            singleLine = true,
-            maxLines = 1,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Location
-        // TODO: modify location to use photo metadata
-        OutlinedTextField(
-            value = location,
-            onValueChange = { location = it },
-            label = { Text("Location") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Date
-        TextField(
-            value = date.format(dateFormatter),
-            onValueChange = { },
-            label = { Text("Date") },
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth(),
-            interactionSource = remember { MutableInteractionSource() }
-                .also { interactionSource -> LaunchedEffect(interactionSource) {
-                    interactionSource.interactions.collect {
-                        if (it is PressInteraction.Release) {
-                            showDatePicker = true
-                        }
-                    }
-
-                }}
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Rating
-        Text("Rating")
-        // TODO: how to create stars as buttons
-        StarRating(rating = rating, onRatingChanged = { rating = it })
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Comments
-        OutlinedTextField(
-            value = comments,
-            onValueChange = { comments = it },
-            label = { Text("Comments") },
+        Column(
+            // modifier to control composable's size, behavior, and appearance
             modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
-            maxLines = 10
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Photo Picker (Multiple Photos)
-        OutlinedButton(
-            onClick = {
-                photoPickLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
+                .fillMaxSize()
+//                .padding(16.dp)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
         ) {
-            Text("Select Photos")
-        }
+            // Title
+            TextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = {
+                    Text(
+                        "Enter title",
+                        fontSize = 42.sp,
+                        color = Color.Gray.copy(alpha = 0.5f))},
+                textStyle = TextStyle(fontSize = 42.sp, fontWeight = FontWeight.Bold),
+                colors = TextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                ),
+                singleLine = true,
+                maxLines = 1,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        // Image Previews
-        if (photoUris.isNotEmpty()) {
-            LazyRow(
-                modifier = Modifier.padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(photoUris) { uri ->
-                    AsyncImage(
-                        model = uri,
-                        contentDescription = "Selected Photo",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Location
+            // TODO: modify location to use photo metadata
+            OutlinedTextField(
+                value = location,
+                onValueChange = { location = it },
+                label = { Text("Location") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Date
+            TextField(
+                value = date.format(dateFormatter),
+                onValueChange = { },
+                label = { Text("Date") },
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                interactionSource = remember { MutableInteractionSource() }
+                    .also { interactionSource -> LaunchedEffect(interactionSource) {
+                        interactionSource.interactions.collect {
+                            if (it is PressInteraction.Release) {
+                                showDatePicker = true
+                            }
+                        }
+
+                    }}
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Rating
+            Text("Rating")
+            // TODO: how to create stars as buttons
+            StarRating(rating = rating, onRatingChanged = { rating = it })
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Comments
+            OutlinedTextField(
+                value = comments,
+                onValueChange = { comments = it },
+                label = { Text("Comments") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                maxLines = 10
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Photo Picker (Multiple Photos)
+            OutlinedButton(
+                onClick = {
+                    photoPickLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Select Photos")
+            }
+
+            // Image Previews
+            if (photoUris.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(photoUris) { uri ->
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = "Selected Photo",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                    }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Save entry
+            Button(
+                onClick = {
+                    onSave(
+                        EntryData(
+                            title = title,
+                            location = location,
+                            date = date,
+                            rating = rating,
+                            comments = comments,
+                            photos = photoUris.map { it.toString() }
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Save")
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Save entry
-        Button(
-            onClick = {
-                onSave(
-                    EntryData(
-                        title = title,
-                        location = location,
-                        date = date,
-                        rating = rating,
-                        comments = comments,
-                        photos = photoUris.map { it.toString() }
-                    )
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Save")
-        }
     }
+
+
 }
 
 
@@ -329,9 +379,12 @@ fun StarRating(rating: Int, onRatingChanged: (Int) -> Unit) {
 
 @Composable
 fun EntryScreenPreview() {
-    MaterialTheme{
+    MaterialTheme {
         Surface {
-            EntryScreen()
+            EntryScreen(
+                entryId = 1,  // Provide a sample entry ID
+                onBack = {}   // Provide an empty lambda for back action
+            )
         }
     }
 }
@@ -346,3 +399,138 @@ data class EntryData(
     val photos: List<String> = emptyList()
 )
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavController) {
+    // Add an initial entry to the list when the screen is first composed
+    LaunchedEffect(Unit) {
+        if (viewModel.mediaItems.isEmpty()) {
+            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", location = "", rating = 0, comments = ""))
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(text = "My App", fontSize = 20.sp) },
+                navigationIcon = {
+                    IconButton(onClick = { /* TODO: Open navigation drawer */ }) {
+                        Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* TODO: Open user profile */ }) {
+                        Icon(imageVector = Icons.Default.Person, contentDescription = "User Profile")
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            BottomAppBar(
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                TextField(
+                    value = "",
+                    onValueChange = {},
+                    placeholder = { Text("Search...") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* TODO: Handle FAB click */ },
+                shape = CircleShape
+            ) {
+                Text("+")
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            if (viewModel.mediaItems.isEmpty()) {
+                Text(
+                    text = "You haven't made any entries or collections yet.\nClick the \"+\" to begin!",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2), // Change to Adaptive(150.dp) for dynamic sizing
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(viewModel.mediaItems) { item ->
+                        when (item) {
+                            is MediaItem.Entry -> {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                        .clickable {
+                                            navController.navigate("entry/${item.id}") // Navigate on click
+                                        },
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = item.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        // Replace with an actual image URL or drawable resource later
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(150.dp)
+                                                .background(Color.Gray) // Placeholder color for stock image
+                                        ) {
+                                            Text(
+                                                text = "Stock Image",
+                                                color = Color.White,
+                                                modifier = Modifier.align(Alignment.Center)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            else -> {
+                                // Handle other MediaItem types (e.g., Collection)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    val navController = rememberNavController() // Create a mock NavController
+
+    MaterialTheme {
+        Surface {
+            HomeScreen(navController = navController) // Pass it to HomeScreen
+        }
+    }
+}
