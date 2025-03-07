@@ -1,20 +1,25 @@
 package com.zybooks.restaurantkeeper
 
+import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import android.os.Build
-import android.util.Log
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,7 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -37,10 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -49,18 +51,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import coil.compose.AsyncImage
 import com.zybooks.restaurantkeeper.ui.theme.Purple40
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZonedDateTime
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.android.gms.common.api.GoogleApi
+import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.delay
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -78,21 +85,33 @@ fun RestaurantTrackerApp() {
     }
 }
 
+@SuppressLint("StateFlowValueCalledInComposition")
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EntryScreen(
     onSave: (EntryData) -> Unit = {},
     entryId: Int?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: EntryScreenViewModel = viewModel(),
 ) {
     var title by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
+    var location by remember ({ mutableStateOf<LatLng?>(null) })
+    var location_expand by remember ({ mutableStateOf(false)})
+    var UserAddress by remember ({ mutableStateOf("")})
+    var ShowManualLocationDialog by remember ({ mutableStateOf(false) })
+    var DeniedPermissionDialog by remember ({ mutableStateOf(false)})
+    var ShowMap by remember({ mutableStateOf(false)})
     var date by remember { mutableStateOf(LocalDate.now()) }
     var rating by remember { mutableIntStateOf(0) }
     var comments by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    LaunchedEffect (viewModel.currentLocation) {
+        location = viewModel.currentLocation
+    }
 
     val photoPickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
@@ -109,7 +128,7 @@ fun EntryScreen(
                 title = { Text(text = "Entry Details") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -229,13 +248,141 @@ fun EntryScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Location
+            // get location permissions
+            if (ShowMap) {
+                val context = LocalContext.current
+
+                // check to see if permission is already granted
+                val hasLocationPermission = ContextCompat.checkSelfPermission(
+                    context,
+                    ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+
+
+
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { isGranted -> viewModel.hasPermission = isGranted }
+
+
+                LaunchedEffect (key1 = true) {
+                    viewModel.hasPermission = hasLocationPermission
+                    if(!viewModel.hasPermission){
+                        Log.d("PermissionDebug", "launching permission request")
+                        permissionLauncher.launch(ACCESS_FINE_LOCATION)
+                    }
+                }
+
+                if(viewModel.hasPermission){
+                    viewModel.createClient(context)
+                    viewModel.acquireLocation()
+
+
+                    if (location != null) {
+                        viewModel.getAddressFromLocation(
+                            context,
+                            location!!.latitude,
+                            location!!.longitude
+                        )
+                        // If using a state variable to store the location
+                        UserAddress = viewModel.addressText.collectAsState().value
+
+                        // Display the address
+                        Text("Your location: $UserAddress")
+                    }
+                }
+                else {
+                    DeniedPermissionDialog = true
+                }
+
+            }
+            // shows alert dialog if user denies permission to location services
+            if (DeniedPermissionDialog) {
+                Dialog(onDismissRequest = { DeniedPermissionDialog = false })
+                {
+                    val context = LocalContext.current
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 6.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Location Access Required",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = "To get your current location automatically, please enable location permissions")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                TextButton(onClick = {DeniedPermissionDialog = false}) {
+                                    Text("Cancel")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = {
+                                    // This won't grant permissions directly - it should open settings
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(intent)
+                                    DeniedPermissionDialog = false
+                                }) {
+                                    Text("Allow")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // shows dialog for manual entry for location
+//            if (ShowManualLocationDialog) {
+//                Card(Text ("E"))
+//            }
+
+
             // TODO: modify location to use photo metadata
-            OutlinedTextField(
-                value = location,
-                onValueChange = { location = it },
-                label = { Text("Location") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    location_expand = !location_expand // show the menu on click
+                }
+                .padding(16.dp)
+                .border(1.dp, Color.Gray)
+            ) {
+                Column {
+                    Text(
+                        text = if (UserAddress.isEmpty()) location.toString() else UserAddress,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // popup dropdown menu
+                    DropdownMenu(
+                        expanded = location_expand,
+                        onDismissRequest = { location_expand = false }, // close menu if cancel
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        DropdownMenuItem (
+                            text = {Text("Enter manually")},
+                            onClick = {
+                                location_expand = false // Close the menu
+                                ShowManualLocationDialog = true
+
+                            })
+                        DropdownMenuItem (
+                            text = {Text("Get current location")},
+                            onClick = {
+                                location_expand = false // Close the menu
+                                ShowMap = true
+                            })
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -317,7 +464,7 @@ fun EntryScreen(
                     onSave(
                         EntryData(
                             title = title,
-                            location = location,
+                            location = UserAddress,
                             date = date,
                             rating = rating,
                             comments = comments,
@@ -335,12 +482,6 @@ fun EntryScreen(
 
 
 }
-
-
-// TODO: implement function for keyboard popup
-//fun addEntryInput(onEnterEntry: (String) -> Unit){
-//    var keyboardController = LocalSoftwareKeyboardController.current
-//}
 
 fun EntryList(
     EntryList: List<EntryData>
@@ -383,7 +524,7 @@ fun EntryScreenPreview() {
         Surface {
             EntryScreen(
                 entryId = 1,  // Provide a sample entry ID
-                onBack = {}   // Provide an empty lambda for back action
+                onBack = {},  // Provide an empty lambda for back action
             )
         }
     }
