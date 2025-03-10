@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -80,7 +81,9 @@ fun RestaurantTrackerApp() {
         }
         composable("entry/{entryId}") { backStackEntry ->
             val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
-            EntryScreen(entryId = entryId, onBack = { navController.popBackStack() })
+            if (entryId != null) {
+                EntryScreen(entryId = entryId, onBack = { navController.popBackStack() }, navController = navController)
+            }
         }
     }
 }
@@ -92,9 +95,10 @@ fun RestaurantTrackerApp() {
 @Composable
 fun EntryScreen(
     onSave: (EntryData) -> Unit = {},
-    entryId: Int?,
     onBack: () -> Unit,
+    entryId: Int,
     viewModel: EntryScreenViewModel = viewModel(),
+    navController: NavController
 ) {
     var title by remember { mutableStateOf("") }
     var location by remember ({ mutableStateOf<LatLng?>(null) })
@@ -233,7 +237,9 @@ fun EntryScreen(
                     Text(
                         "Enter title",
                         fontSize = 42.sp,
-                        color = Color.Gray.copy(alpha = 0.5f))},
+                        color = Color.Gray.copy(alpha = 0.5f)
+                    )
+                },
                 textStyle = TextStyle(fontSize = 42.sp, fontWeight = FontWeight.Bold),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = MaterialTheme.colorScheme.background,
@@ -259,21 +265,20 @@ fun EntryScreen(
                 ) == PackageManager.PERMISSION_GRANTED
 
 
-
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
                 ) { isGranted -> viewModel.hasPermission = isGranted }
 
 
-                LaunchedEffect (key1 = true) {
+                LaunchedEffect(key1 = true) {
                     viewModel.hasPermission = hasLocationPermission
-                    if(!viewModel.hasPermission){
+                    if (!viewModel.hasPermission) {
                         Log.d("PermissionDebug", "launching permission request")
                         permissionLauncher.launch(ACCESS_FINE_LOCATION)
                     }
                 }
 
-                if(viewModel.hasPermission){
+                if (viewModel.hasPermission) {
                     viewModel.createClient(context)
                     viewModel.acquireLocation()
 
@@ -290,8 +295,7 @@ fun EntryScreen(
                         // Display the address
                         Text("Your location: $UserAddress")
                     }
-                }
-                else {
+                } else {
                     DeniedPermissionDialog = true
                 }
 
@@ -319,15 +323,17 @@ fun EntryScreen(
                                 horizontalArrangement = Arrangement.End,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                TextButton(onClick = {DeniedPermissionDialog = false}) {
+                                TextButton(onClick = { DeniedPermissionDialog = false }) {
                                     Text("Cancel")
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 TextButton(onClick = {
                                     // This won't grant permissions directly - it should open settings
-                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
-                                    }
+                                    val intent =
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data =
+                                                Uri.fromParts("package", context.packageName, null)
+                                        }
                                     context.startActivity(intent)
                                     DeniedPermissionDialog = false
                                 }) {
@@ -338,7 +344,6 @@ fun EntryScreen(
                     }
                 }
             }
-
             // shows dialog for manual entry for location
             if (ShowManualLocationDialog) {
                 Dialog(onDismissRequest = { ShowManualLocationDialog = false }) {
@@ -360,13 +365,13 @@ fun EntryScreen(
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
                             TextField(
-                                    value = UserAddress,
-                                    onValueChange = { UserAddress = it },
-                                    placeholder = { Text("Enter name of the restaurant") },
-                                    modifier = Modifier.fillMaxWidth()
+                                value = UserAddress,
+                                onValueChange = { UserAddress = it },
+                                placeholder = { Text("Enter name of the restaurant") },
+                                modifier = Modifier.fillMaxWidth()
                             )
 
-                            Row (
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
@@ -377,7 +382,7 @@ fun EntryScreen(
                                     }) {
                                     Text("Save")
                                 }
-                                TextButton (onClick = {ShowManualLocationDialog = false}){
+                                TextButton(onClick = { ShowManualLocationDialog = false }) {
                                     Text("Cancel")
                                 }
                             }
@@ -390,50 +395,44 @@ fun EntryScreen(
 
             // location
             // TODO: modify location to use photo metadata
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    location_expand = !location_expand // show the menu on click
-                }
-                .padding(4.dp)
+            ExposedDropdownMenuBox(
+                expanded = location_expand,
+                onExpandedChange = { location_expand = it }
             ) {
-                Column {
-                    TextField(
-                        value = UserAddress,
-                        onValueChange = {UserAddress = it},
-                        placeholder = {
-                            Text(
-                                "Location",
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                        },
-                        modifier = Modifier
-                            .padding(bottom = 8.dp)
-                            .fillMaxWidth()
-                    )
+                OutlinedTextField(
+                    value = UserAddress,
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Location", fontSize = 14.sp, color = Color.Gray) },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = location_expand)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
 
-                    // popup dropdown menu
-                    DropdownMenu(
-                        expanded = location_expand,
-                        onDismissRequest = { location_expand = false }, // close menu if cancel
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        DropdownMenuItem (
-                            text = {Text("Enter manually")},
-                            onClick = {
-                                location_expand = false // Close the menu
-                                ShowManualLocationDialog = true
-                            })
-                        DropdownMenuItem (
-                            text = {Text("Get current location")},
-                            onClick = {
-                                location_expand = false // Close the menu
-                                ShowMap = true
-                            })
-                    }
+                ExposedDropdownMenu(
+                    expanded = location_expand,
+                    onDismissRequest = { location_expand = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Enter manually") },
+                        onClick = {
+                            location_expand = false
+                            ShowManualLocationDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Get current location") },
+                        onClick = {
+                            location_expand = false
+                            ShowMap = true
+                        }
+                    )
                 }
             }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -515,6 +514,7 @@ fun EntryScreen(
                 onClick = {
                     onSave(
                         EntryData(
+                            id = entryId,
                             title = title,
                             location = UserAddress,
                             date = date,
@@ -523,6 +523,7 @@ fun EntryScreen(
                             photos = photoUris.map { it.toString() }
                         )
                     )
+                    navController.navigate("home")
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -572,11 +573,13 @@ fun StarRating(rating: Int, onRatingChanged: (Int) -> Unit) {
 
 @Composable
 fun EntryScreenPreview() {
+    val navController = rememberNavController()
     MaterialTheme {
         Surface {
             EntryScreen(
-                entryId = 1,  // Provide a sample entry ID
+                entryId = 0,
                 onBack = {},  // Provide an empty lambda for back action
+                navController = navController
             )
         }
     }
@@ -584,12 +587,13 @@ fun EntryScreenPreview() {
 
 // Entry page includes the following: Title, Location, Date, Rating, Comments, Photos
 data class EntryData(
-    val title: String,
-    val location: String,
-    val date: LocalDate,
-    val rating: Int,
-    val comments: String,
-    val photos: List<String> = emptyList()
+    val id: Int,
+    var title: String,
+    var location: String,
+    var date: LocalDate,
+    var rating: Int,
+    var comments: String,
+    var photos: List<String> = emptyList()
 )
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
