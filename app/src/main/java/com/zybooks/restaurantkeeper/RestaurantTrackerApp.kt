@@ -340,25 +340,77 @@ fun EntryScreen(
             }
 
             // shows dialog for manual entry for location
-//            if (ShowManualLocationDialog) {
-//                Card(Text ("E"))
-//            }
+            if (ShowManualLocationDialog) {
+                Dialog(onDismissRequest = { ShowManualLocationDialog = false }) {
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 6.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Title
+                            Text(
+                                text = "Restaurant Name",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                            TextField(
+                                    value = UserAddress,
+                                    onValueChange = { UserAddress = it },
+                                    placeholder = { Text("Enter name of the restaurant") },
+                                    modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Row (
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = {
+                                        ShowManualLocationDialog = false
+                                    }) {
+                                    Text("Save")
+                                }
+                                TextButton (onClick = {ShowManualLocationDialog = false}){
+                                    Text("Cancel")
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
 
 
+            // location
             // TODO: modify location to use photo metadata
             Box(modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
                     location_expand = !location_expand // show the menu on click
                 }
-                .padding(16.dp)
-                .border(1.dp, Color.Gray)
+                .padding(4.dp)
             ) {
                 Column {
-                    Text(
-                        text = if (UserAddress.isEmpty()) location.toString() else UserAddress,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                    TextField(
+                        value = UserAddress,
+                        onValueChange = {UserAddress = it},
+                        placeholder = {
+                            Text(
+                                "Location",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        },
+                        modifier = Modifier
+                            .padding(bottom = 8.dp)
+                            .fillMaxWidth()
                     )
 
                     // popup dropdown menu
@@ -372,7 +424,6 @@ fun EntryScreen(
                             onClick = {
                                 location_expand = false // Close the menu
                                 ShowManualLocationDialog = true
-
                             })
                         DropdownMenuItem (
                             text = {Text("Get current location")},
@@ -407,8 +458,9 @@ fun EntryScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Rating
-            Text("Rating")
-            // TODO: how to create stars as buttons
+            Text(
+                "Rating",
+                modifier = Modifier.padding(8.dp))
             StarRating(rating = rating, onRatingChanged = { rating = it })
 
             Spacer(modifier = Modifier.height(16.dp))

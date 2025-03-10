@@ -148,4 +148,5 @@ class EntryScreenViewModel : ViewModel(){
 
         return sb.toString()
     }
+
 }
