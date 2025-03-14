@@ -81,7 +81,7 @@ fun RestaurantTrackerApp() {
         }
         composable("entry/{entryId}") { backStackEntry ->
             val entryIdArg = backStackEntry.arguments?.getString("entryId")
-            val entryId = entryIdArg?.toIntOrNull() ?: -1 // Use -1 to indicate a new entry
+            val entryId = entryIdArg?.toIntOrNull() ?: -1 // -1 for new entry
 
             EntryScreen(
                 entryId = entryId,
@@ -89,7 +89,14 @@ fun RestaurantTrackerApp() {
                 navController = navController
             )
         }
+        composable("collection/new") {
+            CollectionScreen(
+                onBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
     }
+
 }
 
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -611,6 +618,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
         if (viewModel.mediaItems.isEmpty()) {
+            // Add MediaItem.Entry items here
             viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""))
             viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = ""))
             viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", location = "", rating = 0, comments = ""))
@@ -620,6 +628,18 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
             viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", location = "", rating = 0, comments = ""))
             viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", location = "", rating = 0, comments = ""))
             viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", location = "", rating = 0, comments = ""))
+
+            // Add a sample collection containing some of these entries
+            val collection = MediaItem.Collection(
+                id = 10,
+                name = "Favorites",
+                description = "My favorite spots",
+                entries = listOf(
+                    MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""),
+                    MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = "")
+                )
+            )
+            viewModel.addMediaItem(collection)
         }
     }
 
@@ -720,8 +740,25 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                                     }
                                 }
                             }
-                            else -> {
+                            is MediaItem.Collection -> {
                                 // Handle other MediaItem types (e.g., Collection)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                        .clickable { /* We can navigate to a CollectionScreen in the future */ }
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(text = item.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                        Text(text = item.description)
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Show up to 3 entries from the collection
+                                        item.entries.take(3).forEach { entry ->
+                                            Text(text = "- ${entry.title}", fontSize = 14.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -732,8 +769,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
-                title = { Text("Create") },
-                text = { Text("Do you want to create an Entry or a Collection?") },
+                title = { Text("Create New") },
+                text = { Text("Would you like to create a new Entry or Collection?") },
                 confirmButton = {
                     Button(
                         onClick = {
@@ -745,11 +782,17 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showDialog = false }) {
-                        Text("Cancel")
+                    Button(
+                        onClick = {
+                            showDialog = false
+                            navController.navigate("collection/new")
+                        }
+                    ) {
+                        Text("Collection")
                     }
                 }
             )
+
         }
     }
 }
@@ -765,3 +808,72 @@ fun HomeScreenPreview() {
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollectionScreen(
+    onBack: () -> Unit,
+    navController: NavController
+) {
+    var collectionName by remember { mutableStateOf("") }
+    var collectionDescription by remember { mutableStateOf("") }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("New Collection") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Collection Name Field
+            OutlinedTextField(
+                value = collectionName,
+                onValueChange = { collectionName = it },
+                label = { Text("Collection Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Collection Description Field
+            OutlinedTextField(
+                value = collectionDescription,
+                onValueChange = { collectionDescription = it },
+                label = { Text("Description") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                maxLines = 5
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Save Button (Navigates back to home)
+            Button(
+                onClick = {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true } // Clears back stack to avoid unnecessary navigation history
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Save")
+            }
+        }
+    }
+}
+
