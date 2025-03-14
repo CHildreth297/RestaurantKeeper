@@ -80,10 +80,14 @@ fun RestaurantTrackerApp() {
             HomeScreen(navController = navController)
         }
         composable("entry/{entryId}") { backStackEntry ->
-            val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
-            if (entryId != null) {
-                EntryScreen(entryId = entryId, onBack = { navController.popBackStack() }, navController = navController)
-            }
+            val entryIdArg = backStackEntry.arguments?.getString("entryId")
+            val entryId = entryIdArg?.toIntOrNull() ?: -1 // Use -1 to indicate a new entry
+
+            EntryScreen(
+                entryId = entryId,
+                onBack = { navController.popBackStack() },
+                navController = navController
+            )
         }
     }
 }
@@ -113,6 +117,8 @@ fun EntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
+    val isNewEntry = entryId == -1
+
     LaunchedEffect (viewModel.currentLocation) {
         location = viewModel.currentLocation
     }
@@ -129,7 +135,7 @@ fun EntryScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "Entry Details") },
+                title = { Text(if (isNewEntry) "New Entry" else "Edit Entry") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -599,6 +605,9 @@ data class EntryData(
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavController) {
+
+    var showDialog by remember { mutableStateOf(false) }
+
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
         if (viewModel.mediaItems.isEmpty()) {
@@ -644,7 +653,9 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Handle FAB click */ },
+                onClick = {
+                    showDialog = true
+                          },
                 shape = CircleShape
             ) {
                 Text("+")
@@ -716,6 +727,29 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                     }
                 }
             }
+        }
+
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Create") },
+                text = { Text("Do you want to create an Entry or a Collection?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDialog = false
+                            navController.navigate("entry/new")
+                        }
+                    ) {
+                        Text("Entry")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
