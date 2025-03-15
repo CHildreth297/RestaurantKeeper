@@ -1,5 +1,6 @@
 package com.zybooks.restaurantkeeper
 
+import CollectionViewModel
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -89,8 +90,12 @@ fun RestaurantTrackerApp() {
                 navController = navController
             )
         }
-        composable("collection/new") {
+        composable("collection/{collectionId}") { backStackEntry ->
+            val collectionIdArg = backStackEntry.arguments?.getString("collectionId")
+            val collectionId = collectionIdArg?.toIntOrNull() ?: -1 // -1 for new entry
+
             CollectionScreen(
+                collectionId = collectionId,
                 onBack = { navController.popBackStack() },
                 navController = navController
             )
@@ -741,25 +746,53 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                                 }
                             }
                             is MediaItem.Collection -> {
-                                // Handle other MediaItem types (e.g., Collection)
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(8.dp)
-                                        .clickable { /* We can navigate to a CollectionScreen in the future */ }
+                                        .clickable { navController.navigate("collection/${item.id}") }, // Navigate to collection screen
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(text = item.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                        Text(text = item.description)
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
 
-                                        // Show up to 3 entries from the collection
-                                        item.entries.take(3).forEach { entry ->
-                                            Text(text = "- ${entry.title}", fontSize = 14.sp)
+                                        // 2x2 Grid of Stock Images
+                                        Column {
+                                            repeat(2) { row ->
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    repeat(2) { col ->
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .aspectRatio(1f)
+                                                                .background(Color.Gray), // Placeholder color
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "Stock Image",
+                                                                color = Color.White
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(8.dp)) // Spacing between rows
+                                            }
                                         }
                                     }
                                 }
                             }
+
                         }
                     }
                 }
@@ -809,19 +842,33 @@ fun HomeScreenPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CollectionScreen(
     onBack: () -> Unit,
-    navController: NavController
+    navController: NavController,
+    collectionId: Int,
+    viewModel: CollectionViewModel = viewModel()
 ) {
-    var collectionName by remember { mutableStateOf("") }
-    var collectionDescription by remember { mutableStateOf("") }
+    val isNewCollection = collectionId == -1 // Check if creating new
+
+    LaunchedEffect(collectionId) {
+        if (!isNewCollection && viewModel.entries.isEmpty()) {
+            viewModel.entries.addAll(
+                listOf(
+                    MediaItem.Entry(id = 1, title = "Entry 1", location = "", rating = 0, comments = ""),
+                    MediaItem.Entry(id = 2, title = "Entry 2", location = "", rating = 0, comments = ""),
+                    MediaItem.Entry(id = 3, title = "Entry 3", location = "", rating = 0, comments = ""),
+                    MediaItem.Entry(id = 4, title = "Entry 4", location = "", rating = 0, comments = "")
+                )
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("New Collection") },
+                title = { Text(if (isNewCollection) "New Collection" else "Edit Collection") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -840,8 +887,8 @@ fun CollectionScreen(
         ) {
             // Collection Name Field
             OutlinedTextField(
-                value = collectionName,
-                onValueChange = { collectionName = it },
+                value = viewModel.collectionName.value,
+                onValueChange = { viewModel.collectionName.value = it },
                 label = { Text("Collection Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -851,8 +898,8 @@ fun CollectionScreen(
 
             // Collection Description Field
             OutlinedTextField(
-                value = collectionDescription,
-                onValueChange = { collectionDescription = it },
+                value = viewModel.description.value,
+                onValueChange = { viewModel.description.value = it },
                 label = { Text("Description") },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -862,11 +909,60 @@ fun CollectionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Save Button (Navigates back to home)
+            // Display Entries in a LazyVerticalGrid (if there are any entries)
+            if (viewModel.entries.isNotEmpty()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(viewModel.entries) { entry ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .clickable { navController.navigate("entry/${entry.id}") },
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = entry.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                // Placeholder for Entry Image
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp)
+                                        .background(Color.Gray),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Stock Image",
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Save Button
             Button(
                 onClick = {
                     navController.navigate("home") {
-                        popUpTo("home") { inclusive = true } // Clears back stack to avoid unnecessary navigation history
+                        popUpTo("home") { inclusive = true } // Clears back stack
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -876,4 +972,3 @@ fun CollectionScreen(
         }
     }
 }
-
