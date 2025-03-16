@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
@@ -12,9 +13,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserEntryDao {
-    @Upsert
-    fun UpsertEntry(entry: UserEntry) {
-        Log.d("DATABASE_DEBUG", "Inserted entry")}
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun UpsertEntry(entry: UserEntry)
 
     @Delete
     fun deleteEntry(entry: UserEntry)
@@ -30,4 +30,7 @@ interface UserEntryDao {
     // List query - make it suspend or return Flow
     @Query("SELECT * FROM user_entries WHERE rating >= :minRating")
     fun getEntriesByMinRating(minRating: Int): List<UserEntry>
+
+    @Query("SELECT MAX(id) FROM user_entries")
+     fun getHighestEntryId(): Int?
 }

@@ -8,7 +8,7 @@ import java.time.LocalDate
 
 
 
-// make database
+// make database for entries
 @Entity(tableName = "user_entries")
 data class UserEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
