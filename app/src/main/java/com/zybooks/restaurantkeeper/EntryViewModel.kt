@@ -10,6 +10,7 @@ import android.location.Geocoder
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -49,6 +51,18 @@ class EntryViewModel : ViewModel(){
 
     private val _entryState = MutableStateFlow<UserEntry?>(null)
     val entryState: StateFlow<UserEntry?> = _entryState
+
+    private val _nextEntryId = MutableStateFlow(1)
+    val nextEntryId: StateFlow<Int> = _nextEntryId.asStateFlow()
+
+    fun getHighestId(db: AppDatabase) {
+        // load highest existing Id when ViewModel is created
+        viewModelScope.launch(Dispatchers.IO) {
+            val highestId = db.userEntryDao().getHighestEntryId() ?: 0
+            _nextEntryId.value = highestId + 1
+        }
+    }
+
 
     fun requestPermission(
         context: Context,
@@ -176,6 +190,15 @@ class EntryViewModel : ViewModel(){
             )
 
             db.userEntryDao().UpsertEntry(entry)
+            Log.d("EntryViewModel", "Entry upserted")
+            Log.d("SaveEntryId", "$id")
+
+            // Immediately verify it's really there
+            val verifyEntry = db.userEntryDao().getEntryById(id)
+            Log.d("EntryViewModelVerify", "Verification query returned: ${verifyEntry != null}")
+            if (verifyEntry != null) {
+                Log.d("EntryViewModelVerify", "Verified entry details: ${verifyEntry.title}, ID: ${verifyEntry.id}")
+            }
 
             // switch to main thread to update UI
             withContext(Dispatchers.Main){
@@ -189,12 +212,13 @@ class EntryViewModel : ViewModel(){
     fun loadEntry(id: Int, db: AppDatabase) {
         viewModelScope.launch(Dispatchers.IO) {
             val entry = db.userEntryDao().getEntryById(id)
-
+            Log.d("loading entry", "$entry")
             // Switch to Main thread
             withContext(Dispatchers.Main) {
                 _entryState.value = entry
             }
         }
     }
+
 
 }

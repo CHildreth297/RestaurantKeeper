@@ -34,12 +34,24 @@ class Converters {
     }
 }
 
-@Database(entities = [UserEntry::class], version = 1)
+@Database(
+    entities = [
+        UserEntry::class,
+        UserCollection::class,
+        EntryCollectionCrossRef::class
+    ],
+    version = 1,  // Keep as 1 if this is a fresh install
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userEntryDao(): UserEntryDao
+    abstract fun collectionDao(): UserCollectionDao
 
     companion object {
+        // Use constants for database configuration
+        private const val DATABASE_NAME = "RestaurantTrackerApp_database"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -48,7 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "RestaurantTrackerApp_database"
+                    DATABASE_NAME
                 ).build()
                 INSTANCE = instance
                 instance

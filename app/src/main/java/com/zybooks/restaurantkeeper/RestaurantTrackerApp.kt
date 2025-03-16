@@ -2,6 +2,7 @@ package com.zybooks.restaurantkeeper
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -67,15 +68,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.LatLng
 import com.zybooks.restaurantkeeper.data.AppDatabase
-import com.zybooks.restaurantkeeper.data.UserEntry
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun RestaurantTrackerApp(db: AppDatabase) {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -83,9 +82,25 @@ fun RestaurantTrackerApp(db: AppDatabase) {
         }
         composable("entry/{entryId}") { backStackEntry ->
             val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
-            if (entryId != null) {
-                EntryScreen(db, entryId = entryId, onBack = { navController.popBackStack() }, navController = navController)
-            }
+            Log.d("EntryId", "EntryId: $entryId")
+            EntryScreen(db,
+                entryId = if (entryId != null) entryId else -1,
+                onBack = { navController.popBackStack() },
+                navController = navController,
+                context = context)
+
+        }
+        composable("collection/{collectionId}") { backStackEntry ->
+            val collectionIdArg = backStackEntry.arguments?.getString("collectionId")
+            val collectionId = collectionIdArg?.toIntOrNull() ?: -1 // -1 for new entry
+
+            CollectionScreen(
+                collectionId = collectionId,
+                onBack = { navController.popBackStack() },
+                navController = navController,
+                db = db,
+                context = context
+            )
         }
     }
 }
@@ -101,18 +116,12 @@ fun EntryScreen(
     entryId: Int,
     entryViewModel: EntryViewModel = viewModel(),
     homeViewModel: HomeViewModel = viewModel(),
-    navController: NavController
+    navController: NavController,
+    context: Context
 ) {
+    Log.d("EntryIdEntryScreen", "EntryId: $entryId")
     val entryState by entryViewModel.entryState.collectAsState()
-    // Load existing entry data if we're editing (entryId > 0)
-
-    LaunchedEffect(entryId) {
-        if (entryId > 0) {
-            if (entryId > 0) {
-                entryViewModel.loadEntry(entryId, db = db)
-            }
-        }
-    }
+    val highestEntryId by entryViewModel.nextEntryId.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var location by remember ({ mutableStateOf<LatLng?>(null) })
@@ -127,13 +136,21 @@ fun EntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    val context = LocalContext.current
+// Load existing entry data if we're editing (entryId > 0)
+    LaunchedEffect(entryId) {
+        if (entryId > 0) {
+            entryViewModel.loadEntry(entryId, db = db)
+        }
+        else {
+            entryViewModel.getHighestId(db = db)
+            Log.d("HighestId", "Getting highest id: $highestEntryId")
+        }
+    }
 
     LaunchedEffect (entryViewModel.currentLocation) {
         location = entryViewModel.currentLocation
     }
 
-    // load already existing data into entries
     LaunchedEffect(entryState) {
         entryState?.let { entry ->
             title = entry.title
@@ -142,9 +159,10 @@ fun EntryScreen(
             rating = entry.rating
             comments = entry.comments
             photoUris = entry.photos.map { it.toUri() }
-
         }
+        Log.d("LoadTitle", "${entryState?.title}")
     }
+
 
     val photoPickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
@@ -540,7 +558,7 @@ fun EntryScreen(
             Button(
                 onClick = {
                     entryViewModel.saveEntry(
-                        id = entryId,
+                        id = if (entryId != -1) entryId else highestEntryId,
                         title = title,
                         location = UserAddress,
                         date = date,
@@ -597,13 +615,15 @@ fun StarRating(rating: Int, onRatingChanged: (Int) -> Unit) {
 @Composable
 fun EntryScreenPreview() {
     val navController = rememberNavController()
+    val context = LocalContext.current
     MaterialTheme {
         Surface {
             EntryScreen(
                 db = AppDatabase.getDatabase(LocalContext.current),
                 entryId = 0,
                 onBack = {},  // Provide an empty lambda for back action
-                navController = navController
+                navController = navController,
+                context = context
             )
         }
     }
@@ -617,20 +637,12 @@ fun EntryScreenPreview() {
 fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                navController: NavController,
                db: AppDatabase) {
+
+    var showDialog by remember { mutableStateOf(false)}
+
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
-        //viewModel.loadEntries(db) // Reload entries when screen becomes active
-        if (viewModel.mediaItems.isEmpty()) {
-            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", date = LocalDate.now(),  location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
-        }
+        viewModel.loadEntries(db) // Reload entries when screen becomes active
     }
 
     Scaffold(
@@ -663,7 +675,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Handle FAB click */ },
+                onClick = { showDialog = true },
                 shape = CircleShape
             ) {
                 Text("+")
@@ -736,6 +748,35 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                 }
             }
         }
+
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Create New") },
+                text = { Text("Would you like to create a new Entry or Collection?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDialog = false
+                            navController.navigate("entry/new")
+                        }
+                    ) {
+                        Text("Entry")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            showDialog = false
+                            navController.navigate("collection/new")
+                        }
+                    ) {
+                        Text("Collection")
+                    }
+                }
+            )
+
+        }
     }
 }
 
@@ -752,3 +793,4 @@ fun HomeScreenPreview() {
         }
     }
 }
+

@@ -65,8 +65,11 @@ class HomeViewModel : ViewModel() {
                     )
                 }
             }
-
         }
+    }
+
+    fun loadCollections(db: AppDatabase){
+
     }
 }
 
