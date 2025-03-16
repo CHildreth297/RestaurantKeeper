@@ -4,17 +4,16 @@ import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -32,7 +31,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -53,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import coil.compose.AsyncImage
@@ -66,28 +65,27 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.android.gms.common.api.GoogleApi
 import com.google.android.gms.maps.model.LatLng
-import kotlinx.coroutines.delay
+import com.zybooks.restaurantkeeper.data.AppDatabase
+import com.zybooks.restaurantkeeper.data.UserEntry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun RestaurantTrackerApp() {
+fun RestaurantTrackerApp(db: AppDatabase) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController, db = db)
         }
         composable("entry/{entryId}") { backStackEntry ->
-            val entryIdArg = backStackEntry.arguments?.getString("entryId")
-            val entryId = entryIdArg?.toIntOrNull() ?: -1 // Use -1 to indicate a new entry
-
-            EntryScreen(
-                entryId = entryId,
-                onBack = { navController.popBackStack() },
-                navController = navController
-            )
+            val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
+            if (entryId != null) {
+                EntryScreen(db, entryId = entryId, onBack = { navController.popBackStack() }, navController = navController)
+            }
         }
     }
 }
@@ -98,12 +96,24 @@ fun RestaurantTrackerApp() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EntryScreen(
-    onSave: (EntryData) -> Unit = {},
+    db: AppDatabase,
     onBack: () -> Unit,
     entryId: Int,
-    viewModel: EntryScreenViewModel = viewModel(),
+    entryViewModel: EntryViewModel = viewModel(),
+    homeViewModel: HomeViewModel = viewModel(),
     navController: NavController
 ) {
+    val entryState by entryViewModel.entryState.collectAsState()
+    // Load existing entry data if we're editing (entryId > 0)
+
+    LaunchedEffect(entryId) {
+        if (entryId > 0) {
+            if (entryId > 0) {
+                entryViewModel.loadEntry(entryId, db = db)
+            }
+        }
+    }
+
     var title by remember { mutableStateOf("") }
     var location by remember ({ mutableStateOf<LatLng?>(null) })
     var location_expand by remember ({ mutableStateOf(false)})
@@ -117,10 +127,23 @@ fun EntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    val isNewEntry = entryId == -1
+    val context = LocalContext.current
 
-    LaunchedEffect (viewModel.currentLocation) {
-        location = viewModel.currentLocation
+    LaunchedEffect (entryViewModel.currentLocation) {
+        location = entryViewModel.currentLocation
+    }
+
+    // load already existing data into entries
+    LaunchedEffect(entryState) {
+        entryState?.let { entry ->
+            title = entry.title
+            UserAddress = entry.location
+            date = entry.date
+            rating = entry.rating
+            comments = entry.comments
+            photoUris = entry.photos.map { it.toUri() }
+
+        }
     }
 
     val photoPickLauncher = rememberLauncherForActivityResult(
@@ -135,7 +158,7 @@ fun EntryScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (isNewEntry) "New Entry" else "Edit Entry") },
+                title = { Text(text = "Entry Details") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -262,7 +285,6 @@ fun EntryScreen(
             // Location
             // get location permissions
             if (ShowMap) {
-                val context = LocalContext.current
 
                 // check to see if permission is already granted
                 val hasLocationPermission = ContextCompat.checkSelfPermission(
@@ -273,30 +295,30 @@ fun EntryScreen(
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
-                ) { isGranted -> viewModel.hasPermission = isGranted }
+                ) { isGranted -> entryViewModel.hasPermission = isGranted }
 
 
                 LaunchedEffect(key1 = true) {
-                    viewModel.hasPermission = hasLocationPermission
-                    if (!viewModel.hasPermission) {
+                    entryViewModel.hasPermission = hasLocationPermission
+                    if (!entryViewModel.hasPermission) {
                         Log.d("PermissionDebug", "launching permission request")
                         permissionLauncher.launch(ACCESS_FINE_LOCATION)
                     }
                 }
 
-                if (viewModel.hasPermission) {
-                    viewModel.createClient(context)
-                    viewModel.acquireLocation()
+                if (entryViewModel.hasPermission) {
+                    entryViewModel.createClient(context)
+                    entryViewModel.acquireLocation()
 
 
                     if (location != null) {
-                        viewModel.getAddressFromLocation(
+                        entryViewModel.getAddressFromLocation(
                             context,
                             location!!.latitude,
                             location!!.longitude
                         )
                         // If using a state variable to store the location
-                        UserAddress = viewModel.addressText.collectAsState().value
+                        UserAddress = entryViewModel.addressText.collectAsState().value
 
                         // Display the address
                         Text("Your location: $UserAddress")
@@ -310,7 +332,6 @@ fun EntryScreen(
             if (DeniedPermissionDialog) {
                 Dialog(onDismissRequest = { DeniedPermissionDialog = false })
                 {
-                    val context = LocalContext.current
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         tonalElevation = 6.dp
@@ -400,7 +421,7 @@ fun EntryScreen(
 
 
             // location
-            // TODO: modify location to use photo metadata
+            // TODO (FUTURE) : modify location to use photo metadata
             ExposedDropdownMenuBox(
                 expanded = location_expand,
                 onExpandedChange = { location_expand = it }
@@ -518,18 +539,22 @@ fun EntryScreen(
             // Save entry
             Button(
                 onClick = {
-                    onSave(
-                        EntryData(
-                            id = entryId,
-                            title = title,
-                            location = UserAddress,
-                            date = date,
-                            rating = rating,
-                            comments = comments,
-                            photos = photoUris.map { it.toString() }
-                        )
+                    entryViewModel.saveEntry(
+                        id = entryId,
+                        title = title,
+                        location = UserAddress,
+                        date = date,
+                        rating = rating,
+                        comments = comments,
+                        photos = photoUris.map { it.toString() },
+                        onSaveComplete = {
+                            // UI notification
+                            Toast.makeText(context, "Entry Saved!",  Toast.LENGTH_SHORT).show()
+                            homeViewModel.loadEntries(db = db)
+
+                            navController.navigate("home")},
+                        db = db
                     )
-                    navController.navigate("home")
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -538,14 +563,6 @@ fun EntryScreen(
         }
 
     }
-
-
-}
-
-fun EntryList(
-    EntryList: List<EntryData>
-) {
-    // TODO: implement onDelete, onShare, etc.
 }
 
 
@@ -583,6 +600,7 @@ fun EntryScreenPreview() {
     MaterialTheme {
         Surface {
             EntryScreen(
+                db = AppDatabase.getDatabase(LocalContext.current),
                 entryId = 0,
                 onBack = {},  // Provide an empty lambda for back action
                 navController = navController
@@ -591,35 +609,27 @@ fun EntryScreenPreview() {
     }
 }
 
-// Entry page includes the following: Title, Location, Date, Rating, Comments, Photos
-data class EntryData(
-    val id: Int,
-    var title: String,
-    var location: String,
-    var date: LocalDate,
-    var rating: Int,
-    var comments: String,
-    var photos: List<String> = emptyList()
-)
 
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavController) {
-
-    var showDialog by remember { mutableStateOf(false) }
-
+fun HomeScreen(viewModel: HomeViewModel = viewModel(),
+               navController: NavController,
+               db: AppDatabase) {
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
+        //viewModel.loadEntries(db) // Reload entries when screen becomes active
         if (viewModel.mediaItems.isEmpty()) {
-            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", location = "", rating = 0, comments = ""))
+            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", date = LocalDate.now(),  location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
         }
     }
 
@@ -653,9 +663,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    showDialog = true
-                          },
+                onClick = { /* TODO: Handle FAB click */ },
                 shape = CircleShape
             ) {
                 Text("+")
@@ -728,40 +736,19 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                 }
             }
         }
-
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                title = { Text("Create") },
-                text = { Text("Do you want to create an Entry or a Collection?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDialog = false
-                            navController.navigate("entry/new")
-                        }
-                    ) {
-                        Text("Entry")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { showDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
     val navController = rememberNavController() // Create a mock NavController
+    lateinit var db: AppDatabase // create mock db
 
     MaterialTheme {
         Surface {
-            HomeScreen(navController = navController) // Pass it to HomeScreen
+            HomeScreen(navController = navController, db = db) // Pass it to HomeScreen
         }
     }
 }

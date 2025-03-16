@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    kotlin ("kapt")
 }
 
 android {
@@ -76,9 +77,15 @@ dependencies {
     implementation(libs.coil.compose.v250)
 
     implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
-    implementation(libs.play.services.location)
+    implementation(libs.play.services.maps.v1910)
+    implementation(libs.play.services.location.v2130)
     implementation(libs.accompanist.permissions)
 
+    implementation (libs.androidx.room.runtime)
+    implementation (libs.androidx.room.ktx)
+
+    kapt (libs.androidx.room.compiler)
 
 }
+
+

@@ -3,3 +3,9 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.jetbrains.kotlin.android) apply false
 }
+
+configurations.all {
+    resolutionStrategy {
+        force ("org.jetbrains:annotations:23.0.0")
+    }
+}
