@@ -1,21 +1,19 @@
 package com.zybooks.restaurantkeeper
 
-import CollectionViewModel
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -33,7 +31,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -54,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import coil.compose.AsyncImage
@@ -67,41 +65,29 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.android.gms.common.api.GoogleApi
 import com.google.android.gms.maps.model.LatLng
-import kotlinx.coroutines.delay
+import com.zybooks.restaurantkeeper.data.AppDatabase
+import com.zybooks.restaurantkeeper.data.UserEntry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun RestaurantTrackerApp() {
+fun RestaurantTrackerApp(db: AppDatabase) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController, db = db)
         }
         composable("entry/{entryId}") { backStackEntry ->
-            val entryIdArg = backStackEntry.arguments?.getString("entryId")
-            val entryId = entryIdArg?.toIntOrNull() ?: -1 // -1 for new entry
-
-            EntryScreen(
-                entryId = entryId,
-                onBack = { navController.popBackStack() },
-                navController = navController
-            )
-        }
-        composable("collection/{collectionId}") { backStackEntry ->
-            val collectionIdArg = backStackEntry.arguments?.getString("collectionId")
-            val collectionId = collectionIdArg?.toIntOrNull() ?: -1 // -1 for new entry
-
-            CollectionScreen(
-                collectionId = collectionId,
-                onBack = { navController.popBackStack() },
-                navController = navController
-            )
+            val entryId = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
+            if (entryId != null) {
+                EntryScreen(db, entryId = entryId, onBack = { navController.popBackStack() }, navController = navController)
+            }
         }
     }
-
 }
 
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -110,12 +96,24 @@ fun RestaurantTrackerApp() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EntryScreen(
-    onSave: (EntryData) -> Unit = {},
+    db: AppDatabase,
     onBack: () -> Unit,
     entryId: Int,
-    viewModel: EntryScreenViewModel = viewModel(),
+    entryViewModel: EntryViewModel = viewModel(),
+    homeViewModel: HomeViewModel = viewModel(),
     navController: NavController
 ) {
+    val entryState by entryViewModel.entryState.collectAsState()
+    // Load existing entry data if we're editing (entryId > 0)
+
+    LaunchedEffect(entryId) {
+        if (entryId > 0) {
+            if (entryId > 0) {
+                entryViewModel.loadEntry(entryId, db = db)
+            }
+        }
+    }
+
     var title by remember { mutableStateOf("") }
     var location by remember ({ mutableStateOf<LatLng?>(null) })
     var location_expand by remember ({ mutableStateOf(false)})
@@ -129,10 +127,23 @@ fun EntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    val isNewEntry = entryId == -1
+    val context = LocalContext.current
 
-    LaunchedEffect (viewModel.currentLocation) {
-        location = viewModel.currentLocation
+    LaunchedEffect (entryViewModel.currentLocation) {
+        location = entryViewModel.currentLocation
+    }
+
+    // load already existing data into entries
+    LaunchedEffect(entryState) {
+        entryState?.let { entry ->
+            title = entry.title
+            UserAddress = entry.location
+            date = entry.date
+            rating = entry.rating
+            comments = entry.comments
+            photoUris = entry.photos.map { it.toUri() }
+
+        }
     }
 
     val photoPickLauncher = rememberLauncherForActivityResult(
@@ -147,7 +158,7 @@ fun EntryScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (isNewEntry) "New Entry" else "Edit Entry") },
+                title = { Text(text = "Entry Details") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -274,7 +285,6 @@ fun EntryScreen(
             // Location
             // get location permissions
             if (ShowMap) {
-                val context = LocalContext.current
 
                 // check to see if permission is already granted
                 val hasLocationPermission = ContextCompat.checkSelfPermission(
@@ -285,30 +295,30 @@ fun EntryScreen(
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
-                ) { isGranted -> viewModel.hasPermission = isGranted }
+                ) { isGranted -> entryViewModel.hasPermission = isGranted }
 
 
                 LaunchedEffect(key1 = true) {
-                    viewModel.hasPermission = hasLocationPermission
-                    if (!viewModel.hasPermission) {
+                    entryViewModel.hasPermission = hasLocationPermission
+                    if (!entryViewModel.hasPermission) {
                         Log.d("PermissionDebug", "launching permission request")
                         permissionLauncher.launch(ACCESS_FINE_LOCATION)
                     }
                 }
 
-                if (viewModel.hasPermission) {
-                    viewModel.createClient(context)
-                    viewModel.acquireLocation()
+                if (entryViewModel.hasPermission) {
+                    entryViewModel.createClient(context)
+                    entryViewModel.acquireLocation()
 
 
                     if (location != null) {
-                        viewModel.getAddressFromLocation(
+                        entryViewModel.getAddressFromLocation(
                             context,
                             location!!.latitude,
                             location!!.longitude
                         )
                         // If using a state variable to store the location
-                        UserAddress = viewModel.addressText.collectAsState().value
+                        UserAddress = entryViewModel.addressText.collectAsState().value
 
                         // Display the address
                         Text("Your location: $UserAddress")
@@ -322,7 +332,6 @@ fun EntryScreen(
             if (DeniedPermissionDialog) {
                 Dialog(onDismissRequest = { DeniedPermissionDialog = false })
                 {
-                    val context = LocalContext.current
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         tonalElevation = 6.dp
@@ -412,7 +421,7 @@ fun EntryScreen(
 
 
             // location
-            // TODO: modify location to use photo metadata
+            // TODO (FUTURE) : modify location to use photo metadata
             ExposedDropdownMenuBox(
                 expanded = location_expand,
                 onExpandedChange = { location_expand = it }
@@ -530,18 +539,22 @@ fun EntryScreen(
             // Save entry
             Button(
                 onClick = {
-                    onSave(
-                        EntryData(
-                            id = entryId,
-                            title = title,
-                            location = UserAddress,
-                            date = date,
-                            rating = rating,
-                            comments = comments,
-                            photos = photoUris.map { it.toString() }
-                        )
+                    entryViewModel.saveEntry(
+                        id = entryId,
+                        title = title,
+                        location = UserAddress,
+                        date = date,
+                        rating = rating,
+                        comments = comments,
+                        photos = photoUris.map { it.toString() },
+                        onSaveComplete = {
+                            // UI notification
+                            Toast.makeText(context, "Entry Saved!",  Toast.LENGTH_SHORT).show()
+                            homeViewModel.loadEntries(db = db)
+
+                            navController.navigate("home")},
+                        db = db
                     )
-                    navController.navigate("home")
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -550,14 +563,6 @@ fun EntryScreen(
         }
 
     }
-
-
-}
-
-fun EntryList(
-    EntryList: List<EntryData>
-) {
-    // TODO: implement onDelete, onShare, etc.
 }
 
 
@@ -595,6 +600,7 @@ fun EntryScreenPreview() {
     MaterialTheme {
         Surface {
             EntryScreen(
+                db = AppDatabase.getDatabase(LocalContext.current),
                 entryId = 0,
                 onBack = {},  // Provide an empty lambda for back action
                 navController = navController
@@ -603,48 +609,27 @@ fun EntryScreenPreview() {
     }
 }
 
-// Entry page includes the following: Title, Location, Date, Rating, Comments, Photos
-data class EntryData(
-    val id: Int,
-    var title: String,
-    var location: String,
-    var date: LocalDate,
-    var rating: Int,
-    var comments: String,
-    var photos: List<String> = emptyList()
-)
 
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavController) {
-
-    var showDialog by remember { mutableStateOf(false) }
-
+fun HomeScreen(viewModel: HomeViewModel = viewModel(),
+               navController: NavController,
+               db: AppDatabase) {
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
+        //viewModel.loadEntries(db) // Reload entries when screen becomes active
         if (viewModel.mediaItems.isEmpty()) {
-            // Add MediaItem.Entry items here
-            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", location = "", rating = 0, comments = ""))
-            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", location = "", rating = 0, comments = ""))
-
-            // Add a sample collection containing some of these entries
-            val collection = MediaItem.Collection(
-                id = 10,
-                name = "Favorites",
-                description = "My favorite spots",
-                entries = listOf(
-                    MediaItem.Entry(id = 1, title = "Sample Entry", location = "", rating = 0, comments = ""),
-                    MediaItem.Entry(id = 2, title = "Second Entry", location = "", rating = 0, comments = "")
-                )
-            )
-            viewModel.addMediaItem(collection)
+            viewModel.addMediaItem(MediaItem.Entry(id = 1, title = "Sample Entry", date = LocalDate.now(),  location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 2, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 3, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 4, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 5, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 6, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 7, title = "Sample Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 8, title = "Second Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
+            viewModel.addMediaItem(MediaItem.Entry(id = 9, title = "Third Entry", date = LocalDate.now(), location = "", rating = 0, comments = "", photos = emptyList()))
         }
     }
 
@@ -678,9 +663,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    showDialog = true
-                          },
+                onClick = { /* TODO: Handle FAB click */ },
                 shape = CircleShape
             ) {
                 Text("+")
@@ -745,230 +728,27 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), navController: NavControl
                                     }
                                 }
                             }
-                            is MediaItem.Collection -> {
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(8.dp)
-                                        .clickable { navController.navigate("collection/${item.id}") }, // Navigate to collection screen
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp)
-                                    ) {
-                                        Text(
-                                            text = item.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-
-                                        // 2x2 Grid of Stock Images
-                                        Column {
-                                            repeat(2) { row ->
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    repeat(2) { col ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .aspectRatio(1f)
-                                                                .background(Color.Gray), // Placeholder color
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "Stock Image",
-                                                                color = Color.White
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                                Spacer(modifier = Modifier.height(8.dp)) // Spacing between rows
-                                            }
-                                        }
-                                    }
-                                }
+                            else -> {
+                                // Handle other MediaItem types (e.g., Collection)
                             }
-
                         }
                     }
                 }
             }
         }
-
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                title = { Text("Create New") },
-                text = { Text("Would you like to create a new Entry or Collection?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDialog = false
-                            navController.navigate("entry/new")
-                        }
-                    ) {
-                        Text("Entry")
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = {
-                            showDialog = false
-                            navController.navigate("collection/new")
-                        }
-                    ) {
-                        Text("Collection")
-                    }
-                }
-            )
-
-        }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
     val navController = rememberNavController() // Create a mock NavController
+    lateinit var db: AppDatabase // create mock db
 
     MaterialTheme {
         Surface {
-            HomeScreen(navController = navController) // Pass it to HomeScreen
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
-@Composable
-fun CollectionScreen(
-    onBack: () -> Unit,
-    navController: NavController,
-    collectionId: Int,
-    viewModel: CollectionViewModel = viewModel()
-) {
-    val isNewCollection = collectionId == -1 // Check if creating new
-
-    LaunchedEffect(collectionId) {
-        if (!isNewCollection && viewModel.entries.isEmpty()) {
-            viewModel.entries.addAll(
-                listOf(
-                    MediaItem.Entry(id = 1, title = "Entry 1", location = "", rating = 0, comments = ""),
-                    MediaItem.Entry(id = 2, title = "Entry 2", location = "", rating = 0, comments = ""),
-                    MediaItem.Entry(id = 3, title = "Entry 3", location = "", rating = 0, comments = ""),
-                    MediaItem.Entry(id = 4, title = "Entry 4", location = "", rating = 0, comments = "")
-                )
-            )
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(if (isNewCollection) "New Collection" else "Edit Collection") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
-        ) {
-            // Collection Name Field
-            OutlinedTextField(
-                value = viewModel.collectionName.value,
-                onValueChange = { viewModel.collectionName.value = it },
-                label = { Text("Collection Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Collection Description Field
-            OutlinedTextField(
-                value = viewModel.description.value,
-                onValueChange = { viewModel.description.value = it },
-                label = { Text("Description") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                maxLines = 5
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Display Entries in a LazyVerticalGrid (if there are any entries)
-            if (viewModel.entries.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(viewModel.entries) { entry ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .clickable { navController.navigate("entry/${entry.id}") },
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = entry.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-
-                                // Placeholder for Entry Image
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(100.dp)
-                                        .background(Color.Gray),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "Stock Image",
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Save Button
-            Button(
-                onClick = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true } // Clears back stack
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text("Save")
-            }
+            HomeScreen(navController = navController, db = db) // Pass it to HomeScreen
         }
     }
 }

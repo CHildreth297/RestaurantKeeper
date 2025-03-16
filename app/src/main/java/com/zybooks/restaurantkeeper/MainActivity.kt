@@ -12,9 +12,13 @@ import androidx.compose.ui.Modifier
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.zybooks.restaurantkeeper.RestaurantTrackerApp
+import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.ui.theme.RestaurantKeeperTheme
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
+    private lateinit var db: AppDatabase
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +30,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    RestaurantTrackerApp()
+                    db = AppDatabase.getDatabase(applicationContext)
+                    RestaurantTrackerApp(db)
                 }
             }
         }
