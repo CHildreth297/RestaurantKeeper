@@ -76,15 +76,15 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.coil.compose.v250)
 
-    implementation("com.google.maps.android:maps-compose:2.11.4")
-    implementation("com.google.android.gms:play-services-maps:18.1.0")
-    implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps.v1910)
+    implementation(libs.play.services.location.v2130)
+    implementation(libs.accompanist.permissions)
 
-    implementation ("androidx.room:room-runtime:2.6.1")
-    implementation ("androidx.room:room-ktx:2.6.1")
+    implementation (libs.androidx.room.runtime)
+    implementation (libs.androidx.room.ktx)
 
-    kapt ("androidx.room:room-compiler:2.5.2")
+    kapt (libs.androidx.room.compiler)
 
 }
 
