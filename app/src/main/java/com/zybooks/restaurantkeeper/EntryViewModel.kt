@@ -21,26 +21,34 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.zybooks.restaurantkeeper.data.AppDatabase
+import com.zybooks.restaurantkeeper.data.UserEntry
+import com.zybooks.restaurantkeeper.data.UserEntryDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.util.Locale
 import kotlin.coroutines.resume
 
 
-class EntryScreenViewModel : ViewModel(){
+class EntryViewModel : ViewModel(){
     // location
     var hasPermission by mutableStateOf(false)
     var currentLocation: LatLng? by mutableStateOf(null)
         private set
     var locationClient: FusedLocationProviderClient? = null
         private set
+
     private val _addressText = MutableStateFlow<String>("Fetching location...")
     val addressText: StateFlow<String> = _addressText
 
+    private val _entryState = MutableStateFlow<UserEntry?>(null)
+    val entryState: StateFlow<UserEntry?> = _entryState
 
     fun requestPermission(
         context: Context,
@@ -143,6 +151,50 @@ class EntryScreenViewModel : ViewModel(){
         }
 
         return sb.toString()
+    }
+
+    fun saveEntry(id: Int,
+                  title: String,
+                  location: String,
+                  date: LocalDate,
+                  rating: Int,
+                  comments: String,
+                  photos: List<String>,
+                  onSaveComplete: () -> Unit,
+                  db: AppDatabase) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // create UserEntry for database
+
+            val entry = UserEntry(
+                id = id,
+                title = title,
+                location = location,
+                date = date,
+                rating = rating,
+                comments = comments,
+                photos = photos
+            )
+
+            db.userEntryDao().UpsertEntry(entry)
+
+            // switch to main thread to update UI
+            withContext(Dispatchers.Main){
+                onSaveComplete()
+            }
+
+        }
+
+    }
+
+    fun loadEntry(id: Int, db: AppDatabase) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val entry = db.userEntryDao().getEntryById(id)
+
+            // Switch to Main thread
+            withContext(Dispatchers.Main) {
+                _entryState.value = entry
+            }
+        }
     }
 
 }
