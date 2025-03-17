@@ -55,17 +55,17 @@ fun CollectionScreen(
     }
 
     // Now you can safely access allEntries once loadEntries has been called
-    val allEntries: List<MediaItem.Entry> = homeViewModel.getAllEntries()
+    val allEntries: List<UserEntry>? = homeViewModel.getAllEntries()
 
     Log.d("HomeViewModel", "All entries: $allEntries")
 
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    val entries = remember { mutableStateListOf<List<UserEntry>>(emptyList()) }
+    val entries = remember { mutableStateListOf<UserEntry>() }
     var createdDate by remember { mutableStateOf(LocalDate.now()) } // Using current date for creation
     var coverImageUri by remember { mutableStateOf("") } // Default empty string for cover image URI
     var showEntrySelection by remember { mutableStateOf(false) } // Dialog visibility state
-    val selectedEntries = remember { mutableStateListOf<MediaItem.Entry>() }
+    val selectedEntries = remember { mutableStateListOf<UserEntry>() }
 
     val converters = Converters()
 
@@ -83,9 +83,12 @@ fun CollectionScreen(
             // Update the entries list contents instead of reassigning
             entries.clear()
 
+            // Something wrong here?
             for (entry in collection.entries) {
-                converters.toUserEntryList(entry)?.let { entries.add(it) }
+                converters.toUserEntry(entry)?.let { entries.add(it) }
             }
+
+            Log.d("in for loop", "entries: $entries")
 
             createdDate = collection.createdDate
             coverImageUri = collection.coverImageUri.toString()
@@ -141,8 +144,10 @@ fun CollectionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            Log.d("CollectionScreen", "Entries: $entries")
+
             // Display Entries in a LazyVerticalGrid (if there are any entries)
-            if (collectionViewModel.entries.isNotEmpty()) {
+            if (entries.isNotEmpty()) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
@@ -150,7 +155,7 @@ fun CollectionScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(collectionViewModel.entries) { entry ->
+                    items(entries) { entry ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -223,7 +228,7 @@ fun CollectionScreen(
 
 
                     LazyColumn {
-                        itemsIndexed(allEntries) { index, entry ->
+                        itemsIndexed(allEntries ?: emptyList()) { index, entry ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -235,13 +240,17 @@ fun CollectionScreen(
                                     checked = selectedEntries.contains(entry),
                                     onCheckedChange = { isChecked ->
                                         if (isChecked) {
-                                            selectedEntries.add(entry)
+                                            if (entry != null) {
+                                                selectedEntries.add(entry)
+                                            }
                                         } else {
                                             selectedEntries.remove(entry)
                                         }
                                     }
                                 )
-                                Text(text = entry.title)
+                                if (entry != null) {
+                                    Text(text = entry.title)
+                                }
                             }
                         }
                     }
@@ -249,15 +258,30 @@ fun CollectionScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            // Handle the selected entries
                             showEntrySelection = false
-                            // You can use selectedEntries here as needed
-                            Log.d("Selected Entries", selectedEntries.toString())
+                            Log.d("Selected entries total", "${selectedEntries.size}")
+                            // Convert selectedEntries to UserEntry and update entries list
+                            entries.clear()
+
+                            for (entry in selectedEntries) {
+                                    entries.add(entry)
+                                Log.d("selected entry", "selected entry: ${entry.title}")
+                            }
+//                            selectedEntries.forEach { mediaItem ->
+//                                converters.toUserEntry(mediaItem.toString())?.let { userEntry ->
+//                                    Log.d("selected entry", "selected entry: ${mediaItem.title}")
+//                                    entries.add(userEntry)
+//                                }
+//                            }
+
+                            // Log the updated entries
+                            // Log.d("CollectionScreen", "Updated Entries: $entries")
                         }
                     ) {
                         Text("Done")
                     }
                 }
+
             )
         }
     }

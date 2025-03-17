@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.zybooks.restaurantkeeper.MediaItem
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -108,7 +109,65 @@ class Converters {
 
         return entries
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    @TypeConverter
+    fun toUserEntry(value: String?): UserEntry? {
+        if (value == null) return null
+
+        return try {
+            val jsonObject = JSONObject(value)
+
+            // Parse the photos array
+            val photosArray = jsonObject.optJSONArray("photos") ?: JSONArray()
+            val photos = mutableListOf<String>()
+            for (i in 0 until photosArray.length()) {
+                photos.add(photosArray.getString(i))
+            }
+
+            // Create and return a single UserEntry object
+            UserEntry(
+                id = jsonObject.optInt("id", 0),
+                title = jsonObject.optString("title", ""),
+                location = jsonObject.optString("location", ""),
+                date = try {
+                    LocalDate.parse(jsonObject.optString("date"))
+                } catch (e: Exception) {
+                    LocalDate.now()
+                },
+                rating = jsonObject.optInt("rating", 0),
+                comments = jsonObject.optString("comments", ""),
+                photos = photos
+            )
+        } catch (e: Exception) {
+            null // Return null if parsing fails
+        }
+    }
+
+    @TypeConverter
+    fun MediaItemstoUserEntryList(value: List<MediaItem.Entry>?): List<UserEntry>? {
+        if (value == null) return null
+
+        val userEntries = mutableListOf<UserEntry>()
+
+        for (entry in value) {
+            val userEntry = UserEntry(
+                id = entry.id,
+                title = entry.title,
+                location = entry.location,
+                date = entry.date,
+                rating = entry.rating,
+                comments = entry.comments,
+                photos = entry.photos
+            )
+            userEntries.add(userEntry)
+        }
+
+        return userEntries
+    }
+
 }
+
 
 @Database(
     entities = [

@@ -1,6 +1,7 @@
 package com.zybooks.restaurantkeeper
 
 import android.os.Build
+import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -11,6 +12,8 @@ import com.zybooks.restaurantkeeper.data.UserEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 
 // Sealed class for MediaItem
 sealed class MediaItem {
@@ -94,8 +97,18 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun getAllEntries(): List<MediaItem.Entry> {
-        return mediaItems.filterIsInstance<MediaItem.Entry>()
+    @OptIn(UnstableApi::class)
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getAllEntries(): List<UserEntry>? {
+        var convert = Converters()
+        val directEntries = mediaItems
+            .filterIsInstance<MediaItem.Entry>()
+
+        var entriesList = convert.MediaItemstoUserEntryList(directEntries)
+        // Convert to UserEntry
+
+        Log.d("entriesList", "$entriesList")
+        return entriesList
     }
 }
 
