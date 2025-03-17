@@ -1,4 +1,4 @@
-package com.zybooks.restaurantkeeper
+package com.zybooks.restaurantkeeper.Screens
 
 import android.content.Context
 import android.os.Build
@@ -19,12 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.media3.common.util.Log
 import androidx.navigation.NavController
+import com.zybooks.restaurantkeeper.CollectionViewModel
+import com.zybooks.restaurantkeeper.HomeViewModel
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
@@ -99,8 +98,8 @@ fun CollectionScreen(
         ) {
             // Collection Name Field
             OutlinedTextField(
-                value = collectionViewModel.collectionName.value,
-                onValueChange = { collectionViewModel.collectionName.value = it },
+                value = name,
+                onValueChange = { name = it },
                 label = { Text("Collection Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -110,8 +109,8 @@ fun CollectionScreen(
 
             // Collection Description Field
             OutlinedTextField(
-                value = collectionViewModel.description.value,
-                onValueChange = { collectionViewModel.description.value = it },
+                value = description,
+                onValueChange = { description = it },
                 label = { Text("Description") },
                 modifier = Modifier
                     .fillMaxWidth()
