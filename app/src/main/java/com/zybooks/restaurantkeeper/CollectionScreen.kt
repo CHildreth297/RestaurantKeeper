@@ -21,9 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.Log
 import androidx.navigation.NavController
 import com.zybooks.restaurantkeeper.data.AppDatabase
+import com.zybooks.restaurantkeeper.data.Converters
+import com.zybooks.restaurantkeeper.data.UserEntry
 import java.time.LocalDate
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -32,33 +36,44 @@ import java.time.LocalDate
 fun CollectionScreen(
     onBack: () -> Unit,
     navController: NavController,
-    collectionId: Int,
+    collectionName: String,
     collectionViewModel: CollectionViewModel = viewModel(),
-    entryViewModel: EntryViewModel = viewModel(),
     homeViewModel: HomeViewModel = viewModel(),
     db: AppDatabase,
     context: Context
 ) {
-    val isNewCollection = collectionId == -1 // Check if creating new
+    val isNewCollection = collectionName == "" // Check if creating new
+    val collectionState by collectionViewModel.collectionState.collectAsState()
 
-    LaunchedEffect(collectionId) {
-        if (!isNewCollection && collectionViewModel.entries.isEmpty()) {
-                    entryViewModel.saveEntry(
-                        id = 1,
-                        title = "test",
-                        location = "",
-                        date = LocalDate.now(),
-                        rating = 0,
-                        comments = "",
-                        photos = emptyList(),
-                        onSaveComplete = {
-                            // UI notification
-                            Toast.makeText(context, "Entry Saved!",  Toast.LENGTH_SHORT).show()
-                            homeViewModel.loadEntries(db = db)
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    val entries = remember { mutableStateListOf<List<UserEntry>>(emptyList()) }
+    var createdDate by remember { mutableStateOf(LocalDate.now()) } // Using current date for creation
+    var coverImageUri by remember { mutableStateOf("") } // Default empty string for cover image URI
 
-                            navController.navigate("home")},
-                        db = db
-                    )
+    val converters = Converters()
+
+    LaunchedEffect(collectionName) {
+        if (collectionName != "") {
+            collectionViewModel.loadCollection(collectionName, db = db)
+        }
+    }
+
+    LaunchedEffect(collectionState) {
+        collectionState?.let { collection ->
+            name = collection.name
+            description = collection.description
+
+            // Update the entries list contents instead of reassigning
+            entries.clear()
+
+
+            for (entry in collection.entries) {
+                converters.toUserEntryList(entry)?.let { entries.add(it) }
+            }
+
+            createdDate = collection.createdDate
+            coverImageUri = collection.coverImageUri.toString()
         }
     }
 
@@ -158,9 +173,20 @@ fun CollectionScreen(
             // Save Button
             Button(
                 onClick = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true } // Clears back stack
-                    }
+                    collectionViewModel.saveCollection(
+                        name = name,
+                        description = description,
+                        entries = entries.map { it.toString() },
+                        createdDate = createdDate,
+                        coverImageUri = coverImageUri,
+                        onSaveComplete = {
+                            // UI notification
+                            Toast.makeText(context, "Collection Saved!",  Toast.LENGTH_SHORT).show()
+                            homeViewModel.loadCollections(db = db)
+
+                            navController.navigate("home")},
+                        db = db
+                    )
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {

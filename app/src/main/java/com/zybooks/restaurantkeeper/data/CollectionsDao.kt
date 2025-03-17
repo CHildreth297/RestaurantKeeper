@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface UserCollectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun UpsertCollection(collection: UserCollection)
+    fun upsertCollection(collection: UserCollection)
 
     @Delete
     fun deleteCollection(collection: UserCollection)
@@ -21,4 +21,5 @@ interface UserCollectionDao {
 
     @Query("SELECT * FROM user_collections WHERE name = :collectionName")
     suspend fun getCollectionById(collectionName: String): UserCollection?
+
 }

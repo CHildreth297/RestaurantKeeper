@@ -90,12 +90,12 @@ fun RestaurantTrackerApp(db: AppDatabase) {
                 context = context)
 
         }
-        composable("collection/{collectionId}") { backStackEntry ->
-            val collectionIdArg = backStackEntry.arguments?.getString("collectionId")
-            val collectionId = collectionIdArg?.toIntOrNull() ?: -1 // -1 for new entry
+        composable("collection/{collectionName}") { backStackEntry ->
+            val collectionNameArg = backStackEntry.arguments?.getString("collectionName")
+            val collectionName = collectionNameArg.toString() // empty string for new entry
 
             CollectionScreen(
-                collectionId = collectionId,
+                collectionName = collectionName,
                 onBack = { navController.popBackStack() },
                 navController = navController,
                 db = db,
@@ -643,6 +643,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
     // Add an initial entry to the list when the screen is first composed
     LaunchedEffect(Unit) {
         viewModel.loadEntries(db) // Reload entries when screen becomes active
+        viewModel.loadCollections(db)
     }
 
     Scaffold(
@@ -740,8 +741,52 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                                     }
                                 }
                             }
-                            else -> {
-                                // Handle other MediaItem types (e.g., Collection)
+                            is MediaItem.Collection -> {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                        .clickable { navController.navigate("collection/${item.name}") }, // Navigate to collection screen
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+
+                                        // 2x2 Grid of Stock Images
+                                        Column {
+                                            repeat(2) { row ->
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    repeat(2) { col ->
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .aspectRatio(1f)
+                                                                .background(Color.Gray), // Placeholder color
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "Stock Image",
+                                                                color = Color.White
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(8.dp)) // Spacing between rows
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

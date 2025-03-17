@@ -1,10 +1,13 @@
 package com.zybooks.restaurantkeeper
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.zybooks.restaurantkeeper.data.AppDatabase
+import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
 import com.zybooks.restaurantkeeper.data.UserEntryDao
 import kotlinx.coroutines.CoroutineScope
@@ -25,9 +28,11 @@ sealed class MediaItem {
         val comments: String,
         val photos: List<String>) : MediaItem()
     data class Collection(
-        val id: Int,
         val name: String,
-        val items: List<Entry>) : MediaItem()
+        val description: String,
+        val entries: List<UserEntry>,
+        val createdDate: LocalDate,
+        val coverImageUri: String?) : MediaItem()
 }
 
 
@@ -68,8 +73,30 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun loadCollections(db: AppDatabase){
+        viewModelScope.launch(Dispatchers.IO) {
+            val databaseCollections = db.collectionDao().getAllCollections()
+            val converters = Converters()
 
+            databaseCollections.collect { dbColectionList ->
+                dbColectionList.forEach { dbCollection ->
+                    converters.toUserEntryList(dbCollection.entries.toString())?.let {
+                        MediaItem.Collection(
+                            name = dbCollection.name,
+                            description = dbCollection.description,
+                            entries = it,
+                            createdDate = dbCollection.createdDate,
+                            coverImageUri = dbCollection.coverImageUri,
+                        )
+                    }?.let {
+                        mediaItems.add(
+                            it
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

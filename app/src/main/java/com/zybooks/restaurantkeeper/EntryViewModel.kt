@@ -24,7 +24,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.UserEntry
-import com.zybooks.restaurantkeeper.data.UserEntryDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
