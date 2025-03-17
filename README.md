@@ -7,26 +7,26 @@ Our restaurant tracker is a diary that keeps track of the restaurants you’ve e
 
 
 ## Features 
-Google Maps API 
-Permissions
- ACCESS_FINE_LOCATION 
-ACCESS_COARSE_LOCATION
-Lat/Lng
-Google Geocoder  
-Room database 
-Data class 
-Navigation controller 
-Coroutine / viewModelScope
-Lazy grids/columns
-Viewmodels
-State flows 
-Sealed class
-Toast 
-Star icons 
-Preview tools 
-LocalDate
+- Google Maps API
+   - Permissions
+   - ACCESS_FINE_LOCATION
+   - ACCESS_COARSE_LOCATION
+   - Lat/Lng
+- Google Geocoder
+- Room database
+- Data class
+- Navigation controller
+- Coroutine / viewModelScope
+- Lazy grids/columns
+- Viewmodels
+- State flows
+- Sealed class
+- Toast
+- Star icons
+- Preview tools
+- LocalDate
 
 ## Dependencies / Android SDK Versions
-Compile SDK = 35
-TargetSDK = 34
+- Compile SDK = 35
+- TargetSDK = 34
 
