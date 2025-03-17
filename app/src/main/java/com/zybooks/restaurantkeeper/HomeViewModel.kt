@@ -4,16 +4,11 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
-import com.zybooks.restaurantkeeper.data.UserEntryDao
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.forEach
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -79,8 +74,8 @@ class HomeViewModel : ViewModel() {
             val databaseCollections = db.collectionDao().getAllCollections()
             val converters = Converters()
 
-            databaseCollections.collect { dbColectionList ->
-                dbColectionList.forEach { dbCollection ->
+            databaseCollections.collect { dbCollectionList ->
+                dbCollectionList.forEach { dbCollection ->
                     converters.toUserEntryList(dbCollection.entries.toString())?.let {
                         MediaItem.Collection(
                             name = dbCollection.name,
