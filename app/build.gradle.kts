@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    kotlin ("kapt")
+    id("com.google.devtools.ksp") version "1.9.0-1.0.13"
 }
 
 android {
@@ -52,6 +52,13 @@ android {
     }
 }
 
+configurations {
+    create("cleanedAnnotations")
+    implementation {
+        exclude(group = "org.jetbrains", module = "annotations")
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -76,18 +83,21 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.coil.compose.v250)
 
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps.v1910)
-    implementation(libs.play.services.location.v2130)
-    implementation(libs.accompanist.permissions)
+    implementation("com.google.maps.android:maps-compose:2.11.4")
+    implementation("com.google.android.gms:play-services-maps:18.1.0")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
 
-    implementation (libs.androidx.room.runtime)
-    implementation (libs.androidx.room.ktx)
+    implementation ("androidx.room:room-runtime:2.6.1")
+    implementation ("androidx.room:room-ktx:2.6.1")
 
-    kapt (libs.androidx.room.compiler)
+    implementation("androidx.room:room-compiler-processing:2.6.1")
 
-    implementation (libs.gson)
+
+    ksp("androidx.room:room-compiler:2.6.1")
+
 
 }
+
 
 

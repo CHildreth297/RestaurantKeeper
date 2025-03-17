@@ -2,6 +2,7 @@ package com.zybooks.restaurantkeeper.Screens
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -9,9 +10,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -24,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.zybooks.restaurantkeeper.CollectionViewModel
 import com.zybooks.restaurantkeeper.HomeViewModel
+import com.zybooks.restaurantkeeper.MediaItem
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
@@ -44,11 +48,24 @@ fun CollectionScreen(
     val isNewCollection = collectionName == "" // Check if creating new
     val collectionState by collectionViewModel.collectionState.collectAsState()
 
+    // Call loadEntries inside a LaunchedEffect
+    LaunchedEffect(key1 = collectionName) {
+        // Ensure this only runs once when the collection screen is shown
+        homeViewModel.loadEntries(db)  // Load entries when this screen is opened
+    }
+
+    // Now you can safely access allEntries once loadEntries has been called
+    val allEntries: List<MediaItem.Entry> = homeViewModel.getAllEntries()
+
+    Log.d("HomeViewModel", "All entries: $allEntries")
+
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     val entries = remember { mutableStateListOf<List<UserEntry>>(emptyList()) }
     var createdDate by remember { mutableStateOf(LocalDate.now()) } // Using current date for creation
     var coverImageUri by remember { mutableStateOf("") } // Default empty string for cover image URI
+    var showEntrySelection by remember { mutableStateOf(false) } // Dialog visibility state
+    val selectedEntries = remember { mutableStateListOf<MediaItem.Entry>() }
 
     val converters = Converters()
 
@@ -65,7 +82,6 @@ fun CollectionScreen(
 
             // Update the entries list contents instead of reassigning
             entries.clear()
-
 
             for (entry in collection.entries) {
                 converters.toUserEntryList(entry)?.let { entries.add(it) }
@@ -86,7 +102,12 @@ fun CollectionScreen(
                     }
                 }
             )
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showEntrySelection = true }) {
+                Text("+")
+            }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -191,6 +212,53 @@ fun CollectionScreen(
             ) {
                 Text("Save")
             }
+        }
+
+        // Add the entry selection dialog here
+        if (showEntrySelection) {
+            AlertDialog(
+                onDismissRequest = { showEntrySelection = false },
+                title = { Text("Select Entries to Add") },
+                text = {
+
+
+                    LazyColumn {
+                        itemsIndexed(allEntries) { index, entry ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Checkbox for selecting the entry
+                                Checkbox(
+                                    checked = selectedEntries.contains(entry),
+                                    onCheckedChange = { isChecked ->
+                                        if (isChecked) {
+                                            selectedEntries.add(entry)
+                                        } else {
+                                            selectedEntries.remove(entry)
+                                        }
+                                    }
+                                )
+                                Text(text = entry.title)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            // Handle the selected entries
+                            showEntrySelection = false
+                            // You can use selectedEntries here as needed
+                            Log.d("Selected Entries", selectedEntries.toString())
+                        }
+                    ) {
+                        Text("Done")
+                    }
+                }
+            )
         }
     }
 }

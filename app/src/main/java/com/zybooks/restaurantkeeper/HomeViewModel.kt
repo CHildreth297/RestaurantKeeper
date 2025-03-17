@@ -93,5 +93,9 @@ class HomeViewModel : ViewModel() {
             }
         }
     }
+
+    fun getAllEntries(): List<MediaItem.Entry> {
+        return mediaItems.filterIsInstance<MediaItem.Entry>()
+    }
 }
 
