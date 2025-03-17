@@ -112,161 +112,161 @@ fun CollectionScreen(
             }
         },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Collection Name Field
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Collection Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Collection Description Field
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                maxLines = 5
-            )
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Collection Name Field
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Collection Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Log.d("CollectionScreen", "Entries: $entries")
+                // Collection Description Field
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    maxLines = 5
+                )
 
-            // Display Entries in a LazyVerticalGrid (if there are any entries)
-            if (entries.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(entries) { entry ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .clickable { navController.navigate("entry/${entry.id}") },
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Log.d("CollectionScreen", "Entries: $entries")
+
+                // Display Entries in a LazyVerticalGrid (if there are any entries)
+                if (entries.isNotEmpty()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(entries) { entry ->
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .padding(8.dp)
+                                    .clickable { navController.navigate("entry/${entry.id}") },
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
-                                Text(
-                                    text = entry.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-
-                                // Placeholder for Entry Image
-                                Box(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(100.dp)
-                                        .background(Color.Gray),
-                                    contentAlignment = Alignment.Center
+                                        .padding(16.dp)
                                 ) {
                                     Text(
-                                        text = "Stock Image",
-                                        color = Color.White
+                                        text = entry.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.padding(bottom = 8.dp)
                                     )
+
+                                    // Placeholder for Entry Image
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(100.dp)
+                                            .background(Color.Gray),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Stock Image",
+                                            color = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                // Save Button (always stays visible)
+                Button(
+                    onClick = {
+                        collectionViewModel.saveCollection(
+                            name = name,
+                            description = description,
+                            entries = entries.map { it.toString() },
+                            createdDate = createdDate,
+                            coverImageUri = coverImageUri,
+                            onSaveComplete = {
+                                Toast.makeText(context, "Collection Saved!", Toast.LENGTH_SHORT)
+                                    .show()
+                                homeViewModel.loadCollections(db = db)
+                                navController.navigate("home")
+                            },
+                            db = db
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Save")
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Save Button
-            Button(
-                onClick = {
-                    collectionViewModel.saveCollection(
-                        name = name,
-                        description = description,
-                        entries = entries.map { it.toString() },
-                        createdDate = createdDate,
-                        coverImageUri = coverImageUri,
-                        onSaveComplete = {
-                            // UI notification
-                            Toast.makeText(context, "Collection Saved!",  Toast.LENGTH_SHORT).show()
-                            homeViewModel.loadCollections(db = db)
-
-                            navController.navigate("home")},
-                        db = db
-                    )
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text("Save")
-            }
-        }
-
-        // Add the entry selection dialog here
-        if (showEntrySelection) {
-            AlertDialog(
-                onDismissRequest = { showEntrySelection = false },
-                title = { Text("Select Entries to Add") },
-                text = {
+            // Add the entry selection dialog here
+            if (showEntrySelection) {
+                AlertDialog(
+                    onDismissRequest = { showEntrySelection = false },
+                    title = { Text("Select Entries to Add") },
+                    text = {
 
 
-                    LazyColumn {
-                        itemsIndexed(allEntries ?: emptyList()) { index, entry ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Checkbox for selecting the entry
-                                Checkbox(
-                                    checked = selectedEntries.contains(entry),
-                                    onCheckedChange = { isChecked ->
-                                        if (isChecked) {
-                                            if (entry != null) {
-                                                selectedEntries.add(entry)
+                        LazyColumn {
+                            itemsIndexed(allEntries ?: emptyList()) { index, entry ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Checkbox for selecting the entry
+                                    Checkbox(
+                                        checked = selectedEntries.contains(entry),
+                                        onCheckedChange = { isChecked ->
+                                            if (isChecked) {
+                                                if (entry != null) {
+                                                    selectedEntries.add(entry)
+                                                }
+                                            } else {
+                                                selectedEntries.remove(entry)
                                             }
-                                        } else {
-                                            selectedEntries.remove(entry)
                                         }
+                                    )
+                                    if (entry != null) {
+                                        Text(text = entry.title)
                                     }
-                                )
-                                if (entry != null) {
-                                    Text(text = entry.title)
                                 }
                             }
                         }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showEntrySelection = false
-                            Log.d("Selected entries total", "${selectedEntries.size}")
-                            // Convert selectedEntries to UserEntry and update entries list
-                            entries.clear()
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showEntrySelection = false
+                                Log.d("Selected entries total", "${selectedEntries.size}")
+                                // Convert selectedEntries to UserEntry and update entries list
+                                entries.clear()
 
-                            for (entry in selectedEntries) {
+                                for (entry in selectedEntries) {
                                     entries.add(entry)
-                                Log.d("selected entry", "selected entry: ${entry.title}")
-                            }
+                                    Log.d("selected entry", "selected entry: ${entry.title}")
+                                }
 //                            selectedEntries.forEach { mediaItem ->
 //                                converters.toUserEntry(mediaItem.toString())?.let { userEntry ->
 //                                    Log.d("selected entry", "selected entry: ${mediaItem.title}")
@@ -274,15 +274,17 @@ fun CollectionScreen(
 //                                }
 //                            }
 
-                            // Log the updated entries
-                            // Log.d("CollectionScreen", "Updated Entries: $entries")
+                                // Log the updated entries
+                                // Log.d("CollectionScreen", "Updated Entries: $entries")
+                            }
+                        ) {
+                            Text("Done")
                         }
-                    ) {
-                        Text("Done")
                     }
-                }
 
-            )
+                )
+            }
         }
+
     }
 }
