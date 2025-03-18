@@ -30,8 +30,17 @@ class Converters {
 
     @TypeConverter
     fun fromString(value: String): List<String> {
-        return value.split(",").filter { it.isNotEmpty() }
+        Log.d("Converters", "fromString - Input value: $value")
+
+        val result = value.split("),")
+            .map { it.trim() + ")" }
+            .filter { it.isNotEmpty() }
+
+        Log.d("Converters", "fromString - Output list: $result")
+
+        return result
     }
+
 
     @TypeConverter
     fun toString(list: List<String>): String {
@@ -113,36 +122,35 @@ class Converters {
     @RequiresApi(Build.VERSION_CODES.O)
     @TypeConverter
     fun toUserEntry(value: String?): UserEntry? {
-        if (value == null) return null
+        if (value.isNullOrEmpty()) return null
 
         return try {
-            val jsonObject = JSONObject(value)
+            // Extract fields using regex
+            val regex = """UserEntry\(id=(\d+), title=([^,]*), location=([^,]*), date=([\d-]+), rating=(\d+), comments=([^,]*), photos=\[(.*?)]\)""".toRegex()
+            val matchResult = regex.find(value)
 
-            // Parse the photos array
-            val photosArray = jsonObject.optJSONArray("photos") ?: JSONArray()
-            val photos = mutableListOf<String>()
-            for (i in 0 until photosArray.length()) {
-                photos.add(photosArray.getString(i))
+            if (matchResult != null) {
+                val (id, title, location, date, rating, comments, photos) = matchResult.destructured
+
+                // Convert the extracted values to appropriate types
+                UserEntry(
+                    id = id.toInt(),
+                    title = title.trim(),
+                    location = location.trim(),
+                    date = LocalDate.parse(date),
+                    rating = rating.toInt(),
+                    comments = comments.trim(),
+                    photos = if (photos.isNotEmpty()) photos.split(", ").map { it.trim() } else emptyList()
+                )
+            } else {
+                null // Return null if parsing fails
             }
-
-            // Create and return a single UserEntry object
-            UserEntry(
-                id = jsonObject.optInt("id", 0),
-                title = jsonObject.optString("title", ""),
-                location = jsonObject.optString("location", ""),
-                date = try {
-                    LocalDate.parse(jsonObject.optString("date"))
-                } catch (e: Exception) {
-                    LocalDate.now()
-                },
-                rating = jsonObject.optInt("rating", 0),
-                comments = jsonObject.optString("comments", ""),
-                photos = photos
-            )
         } catch (e: Exception) {
-            null // Return null if parsing fails
+            Log.e("toUserEntry", "Failed to parse entry: $value", e)
+            null
         }
     }
+
 
     @TypeConverter
     fun MediaItemstoUserEntryList(value: List<MediaItem.Entry>?): List<UserEntry>? {
