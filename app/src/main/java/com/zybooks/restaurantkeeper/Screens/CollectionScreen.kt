@@ -36,6 +36,23 @@ import com.zybooks.restaurantkeeper.data.UserEntry
 import java.time.LocalDate
 import com.google.gson.Gson
 
+fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: List<UserEntry>) {
+    for (i in entries.indices) {
+        val entry = entries[i]
+        // Find the corresponding entry in allEntries by matching ID
+        val matchingEntry = allEntries.find { it.id == entry.id }
+
+        // If a matching entry exists and the title is different, create a new UserEntry with updated title
+        matchingEntry?.let {
+            if (entry.title != it.title) {
+                // Create a new entry with updated title
+                entries[i] = entry.copy(title = it.title)
+            }
+        }
+    }
+}
+
+
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -98,6 +115,10 @@ fun CollectionScreen(
             }
 
             Log.d("in for loop", "entries: $entries")
+
+            if (allEntries != null) {
+                updateEntriesWithAllEntries(entries, allEntries)
+            }
 
             createdDate = collection.createdDate
             coverImageUri = collection.coverImageUri.toString()
