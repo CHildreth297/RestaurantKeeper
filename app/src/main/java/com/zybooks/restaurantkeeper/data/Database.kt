@@ -2,6 +2,7 @@ package com.zybooks.restaurantkeeper.data
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.room.Database
 import androidx.room.Room
@@ -65,46 +66,45 @@ class Converters {
     @RequiresApi(Build.VERSION_CODES.O)
     @TypeConverter
     fun toUserEntryList(value: String?): List<UserEntry>? {
-        if (value == null) return null
+        if (value.isNullOrBlank()) return null
 
-        val jsonArray = JSONArray(value)
+        Log.d("input for toUserEntryList", value)
+
+        // Remove surrounding brackets [ ]
+        val trimmedValue = value.removePrefix("[").removeSuffix("]")
+
+        // Split entries while handling multiple entries
+        val entryRegex = Regex("""UserEntry\((.*?)\)""")
+        val matches = entryRegex.findAll(trimmedValue)
+
         val entries = mutableListOf<UserEntry>()
 
-        // Check if the array is empty
-        if (jsonArray.length() == 0) {
-            return emptyList()
-        }
+        for (match in matches) {
+            val entryString = match.groupValues[1] // Extract inside UserEntry(...)
 
-        // Check if the first item is an array or object
-        for (i in 0 until jsonArray.length()) {
-            try {
-                val jsonObject = jsonArray.getJSONObject(i)
+            // Extract fields manually
+            val id = Regex("""id=(\d+)""").find(entryString)?.groupValues?.get(1)?.toInt() ?: 0
+            val title = Regex("""title=([^,]+)""").find(entryString)?.groupValues?.get(1)?.trim() ?: ""
+            val location = Regex("""location=([^,]*)""").find(entryString)?.groupValues?.get(1)?.trim() ?: ""
+            val dateStr = Regex("""date=([0-9-]+)""").find(entryString)?.groupValues?.get(1) ?: LocalDate.now().toString()
+            val rating = Regex("""rating=(\d+)""").find(entryString)?.groupValues?.get(1)?.toInt() ?: 0
+            val comments = Regex("""comments=([^,]*)""").find(entryString)?.groupValues?.get(1)?.trim() ?: ""
 
-                // Now safely parse the object
-                val photosArray = jsonObject.optJSONArray("photos") ?: JSONArray()
-                val photos = mutableListOf<String>()
-                for (j in 0 until photosArray.length()) {
-                    photos.add(photosArray.getString(j))
-                }
+            // Extract photos array
+            val photosMatch = Regex("""photos=\[(.*?)\]""").find(entryString)
+            val photos = photosMatch?.groupValues?.get(1)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 
-                val entry = UserEntry(
-                    id = jsonObject.optInt("id", 0),
-                    title = jsonObject.optString("title", ""),
-                    location = jsonObject.optString("location", ""),
-                    date = try {
-                        LocalDate.parse(jsonObject.optString("date"))
-                    } catch (e: Exception) {
-                        LocalDate.now()
-                    },
-                    rating = jsonObject.optInt("rating", 0),
-                    comments = jsonObject.optString("comments", ""),
-                    photos = photos
-                )
-                entries.add(entry)
-            } catch (e: Exception) {
-                // Skip invalid entries
-                continue
-            }
+            // Construct UserEntry object
+            val entry = UserEntry(
+                id = id,
+                title = title,
+                location = location,
+                date = try { LocalDate.parse(dateStr) } catch (e: Exception) { LocalDate.now() },
+                rating = rating,
+                comments = comments,
+                photos = photos
+            )
+            entries.add(entry)
         }
 
         return entries

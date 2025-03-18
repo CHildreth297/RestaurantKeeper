@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -32,6 +34,7 @@ import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
 import java.time.LocalDate
+import com.google.gson.Gson
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -45,6 +48,7 @@ fun CollectionScreen(
     db: AppDatabase,
     context: Context
 ) {
+    val gson = Gson()
     val isNewCollection = collectionName == "" // Check if creating new
     val collectionState by collectionViewModel.collectionState.collectAsState()
 
@@ -70,7 +74,9 @@ fun CollectionScreen(
     val converters = Converters()
 
     LaunchedEffect(collectionName) {
+        Log.d("enter collectionName LE", collectionName)
         if (collectionName != "") {
+            Log.d("2 enter collectionName LE", collectionName)
             collectionViewModel.loadCollection(collectionName, db = db)
         }
     }
@@ -83,8 +89,11 @@ fun CollectionScreen(
             // Update the entries list contents instead of reassigning
             entries.clear()
 
+            Log.d("TAG", "1 print entry as string: ${collection.entries.joinToString(", ")} | List size: ${collection.entries.size}")
+
             // Something wrong here?
             for (entry in collection.entries) {
+                Log.d("loop print entry as string",entry)
                 converters.toUserEntry(entry)?.let { entries.add(it) }
             }
 
@@ -112,112 +121,122 @@ fun CollectionScreen(
             }
         },
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
         ) {
-            // Collection Name Field
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Collection Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Collection Name Field
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Collection Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Collection Description Field
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                maxLines = 5
-            )
+                // Collection Description Field
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    maxLines = 5
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Log.d("CollectionScreen", "Entries: $entries")
+                Log.d("CollectionScreen", "Entries: $entries")
 
-            // Display Entries in a LazyVerticalGrid (if there are any entries)
-            if (entries.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                // **Fix: Wrap list inside a Box with weight(1f) instead of making Column scrollable**
+                Box(
+                    modifier = Modifier
+                        .weight(1f) // This ensures the grid takes up available space properly
                 ) {
-                    items(entries) { entry ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .clickable { navController.navigate("entry/${entry.id}") },
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    if (entries.isNotEmpty()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = entry.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-
-                                // Placeholder for Entry Image
-                                Box(
+                            items(entries) { entry ->
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(100.dp)
-                                        .background(Color.Gray),
-                                    contentAlignment = Alignment.Center
+                                        .padding(8.dp)
+                                        .clickable { navController.navigate("entry/${entry.id}") },
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
-                                    Text(
-                                        text = "Stock Image",
-                                        color = Color.White
-                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = entry.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+
+                                        // Placeholder for Entry Image
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(100.dp)
+                                                .background(Color.Gray),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Stock Image",
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Save Button
-            Button(
-                onClick = {
-                    collectionViewModel.saveCollection(
-                        name = name,
-                        description = description,
-                        entries = entries.map { it.toString() },
-                        createdDate = createdDate,
-                        coverImageUri = coverImageUri,
-                        onSaveComplete = {
-                            // UI notification
-                            Toast.makeText(context, "Collection Saved!",  Toast.LENGTH_SHORT).show()
-                            homeViewModel.loadCollections(db = db)
-
-                            navController.navigate("home")},
-                        db = db
-                    )
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text("Save")
+                // Save Button (always stays visible)
+                Button(
+                    onClick = {
+                        Log.d("CollectionScreen", "Entries before saving: $entries")
+                        val jsonEntries = gson.toJson(entries) // Convert entries list to a valid JSON string
+                        collectionViewModel.saveCollection(
+                            name = name,
+                            description = description,
+                            entries = entries.map { it.toString() },
+                            createdDate = createdDate,
+                            coverImageUri = coverImageUri,
+                            onSaveComplete = {
+                                Log.d("CollectionScreen", "the json toString: ${entries.map { it.toString() }} | List size: ${entries.size}")
+                                Toast.makeText(context, "Collection Saved!", Toast.LENGTH_SHORT).show()
+                                homeViewModel.loadCollections(db = db)
+                                navController.navigate("home")
+                            },
+                            db = db
+                        )
+                    },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Save")
+                }
             }
         }
+
+
 
         // Add the entry selection dialog here
         if (showEntrySelection) {
