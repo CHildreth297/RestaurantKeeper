@@ -39,4 +39,11 @@ Our restaurant tracker is a diary that keeps track of the restaurants you’ve e
 ## Dependencies / Android SDK Versions
 - Compile SDK = 35
 - TargetSDK = 34
+- Android SDK = Android 12.0 ("S")
+- API Level = 31
 
+- Emulator runs Android 15.0
+- API level is 35
+- AvdId = Medium_Phone_API_35
+- Android Emulator Version 35.2.10
+- Android SDK Platform Tools Version 35.0.2
