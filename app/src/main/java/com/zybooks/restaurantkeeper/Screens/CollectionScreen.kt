@@ -24,9 +24,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.zybooks.restaurantkeeper.CollectionViewModel
 import com.zybooks.restaurantkeeper.HomeViewModel
 import com.zybooks.restaurantkeeper.MediaItem
@@ -42,15 +45,30 @@ fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: Lis
         // Find the corresponding entry in allEntries by matching ID
         val matchingEntry = allEntries.find { it.id == entry.id }
 
-        // If a matching entry exists and the title is different, create a new UserEntry with updated title
+        // If a matching entry exists and either the title or the photos list is different, update it
         matchingEntry?.let {
+            var updated = false
+
+            // Check if the title is different
             if (entry.title != it.title) {
-                // Create a new entry with updated title
                 entries[i] = entry.copy(title = it.title)
+                updated = true
+            }
+
+            // Check if the photos list is different
+            if (entry.photos != it.photos) {
+                entries[i] = entry.copy(photos = it.photos)
+                updated = true
+            }
+
+            // You can log or do something with `updated` if needed
+            if (updated) {
+                println("Updated entry: ${entry.id}")
             }
         }
     }
 }
+
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -214,14 +232,26 @@ fun CollectionScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(100.dp)
-                                                .background(Color.Gray),
-                                            contentAlignment = Alignment.Center
+                                                .height(150.dp)
+                                                .background(Color.Gray) // Placeholder background
                                         ) {
-                                            Text(
-                                                text = "Stock Image",
-                                                color = Color.White
-                                            )
+                                            val imageUrl = entry.photos.firstOrNull() // No need to convert to URI
+
+                                            if (imageUrl != null) {
+                                                AsyncImage(
+                                                    model = imageUrl,  // Directly pass the string URL
+                                                    contentDescription = "Media Image",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "No Image Available",
+                                                    color = Color.White,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.align(Alignment.Center)
+                                                )
+                                            }
                                         }
                                     }
                                 }
