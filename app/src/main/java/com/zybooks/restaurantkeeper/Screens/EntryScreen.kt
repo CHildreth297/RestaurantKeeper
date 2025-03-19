@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +85,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.android.gms.maps.model.LatLng
 import com.zybooks.restaurantkeeper.EntryViewModel
 import com.zybooks.restaurantkeeper.HomeViewModel
@@ -148,7 +151,8 @@ fun EntryScreen(
     var rating by remember { mutableIntStateOf(0) }
     var comments by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
-    var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var photoUris = remember { mutableStateListOf<Uri>() }
+
 
 // Load existing entry data if we're editing (entryId > 0)
     LaunchedEffect(entryId) {
@@ -172,16 +176,29 @@ fun EntryScreen(
             date = entry.date
             rating = entry.rating
             comments = entry.comments
-            photoUris = entry.photos.map { it.toUri() }
+//            photoUris = entry.photos.map { it.toUri() }
+            photoUris.clear()
+
+//            android.util.Log.d("TAG", "1 print entry as string: ${collection.entries.joinToString(", ")} | List size: ${collection.entries.size}")
+
+            // Something wrong here?
+            for (photo in entry.photos) {
+//                android.util.Log.d("loop print entry as string",entry)
+//                converters.toUserEntry(entry)?.let { entries.add(it) }
+                photoUris.add(photo.toUri())
+            }
         }
         Log.d("LoadTitle", "${entryState?.title}")
     }
 
 
+    // Photo picker launcher to select multiple images
     val photoPickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris: List<Uri> ->
-        photoUris = uris
+        // Instead of reassigning, modify the photoUris list directly
+        photoUris.clear()  // Clear existing photos
+        photoUris.addAll(uris)  // Add new photos
     }
 
     // date formatter
@@ -549,6 +566,8 @@ fun EntryScreen(
                 Text("Select Photos")
             }
 
+            Log.d("len of photosUris","${photoUris.size}")
+
             // Image Previews
             if (photoUris.isNotEmpty()) {
                 LazyRow(
@@ -556,12 +575,17 @@ fun EntryScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(photoUris) { uri ->
+                        Log.d("photo uri", uri.toString())
                         AsyncImage(
-                            model = uri,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(uri) // Provide the URI to load the image
+                                .crossfade(true) // Optional: enables crossfade transition
+                                .build(),
                             contentDescription = "Selected Photo",
                             modifier = Modifier
                                 .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
@@ -572,6 +596,7 @@ fun EntryScreen(
             // Save entry
             Button(
                 onClick = {
+
                     entryViewModel.saveEntry(
                         id = if (entryId != -1) entryId else highestEntryId,
                         title = title,
