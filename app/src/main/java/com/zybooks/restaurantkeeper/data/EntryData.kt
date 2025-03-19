@@ -19,7 +19,10 @@ data class UserEntry(
     val rating: Int,
     val comments: String,
     @TypeConverters(Converters::class)
-    val photos: List<String>
+    val photos: List<String>,
+    @TypeConverters(Converters::class)
+    val coverPhoto: String
+
 )
 
 

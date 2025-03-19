@@ -1,9 +1,13 @@
 package com.zybooks.restaurantkeeper.Screens
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -24,9 +28,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.zybooks.restaurantkeeper.CollectionViewModel
 import com.zybooks.restaurantkeeper.HomeViewModel
 import com.zybooks.restaurantkeeper.MediaItem
@@ -53,6 +63,7 @@ fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: Lis
 }
 
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -124,6 +135,7 @@ fun CollectionScreen(
             coverImageUri = collection.coverImageUri.toString()
         }
     }
+
 
     Scaffold(
         topBar = {
@@ -210,7 +222,7 @@ fun CollectionScreen(
                                             modifier = Modifier.padding(bottom = 8.dp)
                                         )
 
-                                        // Placeholder for Entry Image
+                                        // Display image
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -218,10 +230,24 @@ fun CollectionScreen(
                                                 .background(Color.Gray),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = "Stock Image",
-                                                color = Color.White
-                                            )
+                                            if (entry.coverPhoto != "") {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(context)
+                                                        .data(entry.coverPhoto.toUri()) // Pass as data source
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = "Selected Image",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "No Image Available",
+                                                    color = Color.White,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.align(Alignment.Center)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -307,15 +333,6 @@ fun CollectionScreen(
                                     entries.add(entry)
                                 Log.d("selected entry", "selected entry: ${entry.title}")
                             }
-//                            selectedEntries.forEach { mediaItem ->
-//                                converters.toUserEntry(mediaItem.toString())?.let { userEntry ->
-//                                    Log.d("selected entry", "selected entry: ${mediaItem.title}")
-//                                    entries.add(userEntry)
-//                                }
-//                            }
-
-                            // Log the updated entries
-                            // Log.d("CollectionScreen", "Updated Entries: $entries")
                         }
                     ) {
                         Text("Done")

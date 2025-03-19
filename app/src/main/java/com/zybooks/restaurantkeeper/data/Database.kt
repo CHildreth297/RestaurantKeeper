@@ -9,6 +9,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.zybooks.restaurantkeeper.MediaItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -28,18 +30,6 @@ class Converters {
         return if (value == null) null else LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
     }
 
-//    @TypeConverter
-//    fun fromString(value: String): List<String> {
-//        Log.d("Converters", "fromString - Input value: $value")
-//
-//        val result = value.split("),")
-//            .map { it.trim() + ")" }
-//            .filter { it.isNotEmpty() }
-//
-//        Log.d("Converters", "fromString - Output list: $result")
-//
-//        return result
-//    }
 
     @TypeConverter
     fun fromString(value: String): List<String> {
@@ -140,9 +130,12 @@ class Converters {
             val rating = Regex("""rating=(\d+)""").find(entryString)?.groupValues?.get(1)?.toInt() ?: 0
             val comments = Regex("""comments=([^,]*)""").find(entryString)?.groupValues?.get(1)?.trim() ?: ""
 
-            // Extract photos array
+            // Extract photos array - make sure to account for coverPhoto field following it
             val photosMatch = Regex("""photos=\[(.*?)\]""").find(entryString)
             val photos = photosMatch?.groupValues?.get(1)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+
+            // Extract coverPhoto (likely the last field)
+            val coverPhoto = Regex("""coverPhoto=([^)]*)""").find(entryString)?.groupValues?.get(1)?.trim() ?: ""
 
             // Construct UserEntry object
             val entry = UserEntry(
@@ -152,7 +145,8 @@ class Converters {
                 date = try { LocalDate.parse(dateStr) } catch (e: Exception) { LocalDate.now() },
                 rating = rating,
                 comments = comments,
-                photos = photos
+                photos = photos,
+                coverPhoto = coverPhoto
             )
             entries.add(entry)
         }
@@ -166,12 +160,12 @@ class Converters {
         if (value.isNullOrEmpty()) return null
 
         return try {
-            // Extract fields using regex
-            val regex = """UserEntry\(id=(\d+), title=([^,]*), location=([^,]*), date=([\d-]+), rating=(\d+), comments=([^,]*), photos=\[(.*?)]\)""".toRegex()
+            // Extract fields using regex - updated to handle coverPhoto
+            val regex = """UserEntry\(id=(\d+), title=([^,]*), location=([^,]*), date=([\d-]+), rating=(\d+), comments=([^,]*), photos=\[(.*?)], coverPhoto=([^)]*)""".toRegex()
             val matchResult = regex.find(value)
 
             if (matchResult != null) {
-                val (id, title, location, date, rating, comments, photos) = matchResult.destructured
+                val (id, title, location, date, rating, comments, photos, coverPhoto) = matchResult.destructured
 
                 // Convert the extracted values to appropriate types
                 UserEntry(
@@ -181,7 +175,8 @@ class Converters {
                     date = LocalDate.parse(date),
                     rating = rating.toInt(),
                     comments = comments.trim(),
-                    photos = if (photos.isNotEmpty()) photos.split(", ").map { it.trim() } else emptyList()
+                    photos = if (photos.isNotEmpty()) photos.split(", ").map { it.trim() } else emptyList(),
+                    coverPhoto = coverPhoto.trim()
                 )
             } else {
                 null // Return null if parsing fails
@@ -200,16 +195,21 @@ class Converters {
         val userEntries = mutableListOf<UserEntry>()
 
         for (entry in value) {
-            val userEntry = UserEntry(
-                id = entry.id,
-                title = entry.title,
-                location = entry.location,
-                date = entry.date,
-                rating = entry.rating,
-                comments = entry.comments,
-                photos = entry.photos
-            )
-            userEntries.add(userEntry)
+            val userEntry = entry.coverPhoto?.let {
+                UserEntry(
+                    id = entry.id,
+                    title = entry.title,
+                    location = entry.location,
+                    date = entry.date,
+                    rating = entry.rating,
+                    comments = entry.comments,
+                    photos = entry.photos,
+                    coverPhoto = it
+                )
+            }
+            if (userEntry != null) {
+                userEntries.add(userEntry)
+            }
         }
 
         return userEntries
@@ -224,7 +224,7 @@ class Converters {
         UserCollection::class,
         //EntryCollectionCrossRef::class
     ],
-    version = 1,  // Keep as 1 if this is a fresh install
+    version = 2,  // Keep as 1 if this is a fresh install
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -232,9 +232,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userEntryDao(): UserEntryDao
     abstract fun collectionDao(): UserCollectionDao
 
+
     companion object {
         // Use constants for database configuration
         private const val DATABASE_NAME = "RestaurantTrackerApp_database"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the coverPhoto column to your table
+                database.execSQL("ALTER TABLE user_entries ADD COLUMN coverPhoto TEXT NOT NULL DEFAULT ''")
+            }
+        }
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -245,7 +253,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
-                ).build()
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
                 INSTANCE = instance
                 instance
             }

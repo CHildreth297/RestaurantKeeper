@@ -33,6 +33,8 @@ class CollectionViewModel : ViewModel() {
     private val _nextCollectionId = MutableStateFlow(1)
     val nextCollectionId: StateFlow<Int> = _nextCollectionId.asStateFlow()
 
+    var collectionPhotos = mutableStateListOf<List<String>>()
+
     fun saveCollection(
                   name: String,
                   description: String,

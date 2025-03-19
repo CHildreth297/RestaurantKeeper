@@ -10,6 +10,7 @@ import android.location.Geocoder
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -173,6 +174,7 @@ class EntryViewModel : ViewModel(){
                   rating: Int,
                   comments: String,
                   photos: List<String>,
+                  coverPhoto: String,
                   onSaveComplete: () -> Unit,
                   db: AppDatabase) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -185,7 +187,8 @@ class EntryViewModel : ViewModel(){
                 date = date,
                 rating = rating,
                 comments = comments,
-                photos = photos
+                photos = photos,
+                coverPhoto = coverPhoto
             )
 
             db.userEntryDao().UpsertEntry(entry)

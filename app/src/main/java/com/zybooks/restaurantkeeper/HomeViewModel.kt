@@ -24,7 +24,8 @@ sealed class MediaItem {
         val location: String,
         val rating: Int,
         val comments: String,
-        val photos: List<String>) : MediaItem()
+        val photos: List<String>,
+        val coverPhoto: String?) : MediaItem()
     data class Collection(
         val name: String,
         val description: String,
@@ -63,7 +64,8 @@ class HomeViewModel : ViewModel() {
                             location = dbEntry.location,
                             rating = dbEntry.rating,
                             comments = dbEntry.comments,
-                            photos = dbEntry.photos
+                            photos = dbEntry.photos,
+                            coverPhoto = dbEntry.coverPhoto
                         )
                     )
                 }

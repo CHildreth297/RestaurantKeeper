@@ -2,6 +2,7 @@ package com.zybooks.restaurantkeeper.Screens
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -77,6 +78,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -153,6 +155,7 @@ fun EntryScreen(
     var comments by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var photoUris = remember { mutableStateListOf<Uri>() }
+    var coverPhoto by remember { mutableStateOf("") }
 
 
 // Load existing entry data if we're editing (entryId > 0)
@@ -193,6 +196,7 @@ fun EntryScreen(
     }
 
 
+
     // Photo picker launcher to select multiple images
     val photoPickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
@@ -207,6 +211,7 @@ fun EntryScreen(
         }
 
     }
+
 
     // date formatter
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMMM d, yyyy") }
@@ -568,6 +573,7 @@ fun EntryScreen(
                     photoPickLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
+
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -596,6 +602,7 @@ fun EntryScreen(
                             contentScale = ContentScale.Crop
                         )
                     }
+                    coverPhoto = photoUris.firstOrNull().toString()
                 }
             }
 
@@ -613,6 +620,7 @@ fun EntryScreen(
                         rating = rating,
                         comments = comments,
                         photos = photoUris.map { it.toString() },
+                        coverPhoto = coverPhoto,
                         onSaveComplete = {
                             // UI notification
                             Toast.makeText(context, "Entry Saved!",  Toast.LENGTH_SHORT).show()
