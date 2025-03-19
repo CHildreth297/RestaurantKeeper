@@ -1,6 +1,8 @@
 package com.zybooks.restaurantkeeper.Screens
 
+import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -47,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -54,9 +58,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.zybooks.restaurantkeeper.HomeViewModel
 import com.zybooks.restaurantkeeper.MediaItem
 import com.zybooks.restaurantkeeper.data.AppDatabase
+import androidx.core.net.toUri
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -65,7 +72,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                navController: NavController,
                db: AppDatabase
 ) {
-
+    val context = LocalContext.current
     var showDialog by remember { mutableStateOf(false) }
 
     // Add an initial entry to the list when the screen is first composed
@@ -154,18 +161,46 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                                             modifier = Modifier.padding(bottom = 8.dp)
                                         )
                                         // Replace with an actual image URL or drawable resource later
+//                                        Box(
+//                                            modifier = Modifier
+//                                                .fillMaxWidth()
+//                                                .height(150.dp)
+//                                                .background(Color.Gray) // Placeholder color for stock image
+//                                        ) {
+//                                            Text(
+//                                                text = "Stock Image",
+//                                                color = Color.White,
+//                                                modifier = Modifier.align(Alignment.Center)
+//                                            )
+//                                        }
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(150.dp)
-                                                .background(Color.Gray) // Placeholder color for stock image
+                                                .background(Color.Gray)
                                         ) {
-                                            Text(
-                                                text = "Stock Image",
-                                                color = Color.White,
-                                                modifier = Modifier.align(Alignment.Center)
-                                            )
+                                            val imageUri = item.photos.firstOrNull()?.toUri()
+
+                                            if (imageUri != null) {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(context)
+                                                        .data(imageUri) // Pass as data source
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = "Selected Image",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "No Image Available",
+                                                    color = Color.White,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.align(Alignment.Center)
+                                                )
+                                            }
                                         }
+
                                     }
                                 }
                             }
