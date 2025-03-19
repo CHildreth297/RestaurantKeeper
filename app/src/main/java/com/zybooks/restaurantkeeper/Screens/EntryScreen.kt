@@ -317,6 +317,7 @@ fun EntryScreen(
             // Location
             // get location permissions
             if (ShowMap) {
+                DeniedPermissionDialog = false
 
                 // check to see if permission is already granted
                 val hasLocationPermission = ContextCompat.checkSelfPermission(

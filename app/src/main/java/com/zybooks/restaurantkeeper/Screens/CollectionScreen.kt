@@ -225,8 +225,6 @@ fun CollectionScreen(
                     onDismissRequest = { showEntrySelection = false },
                     title = { Text("Select Entries to Add") },
                     text = {
-
-
                         LazyColumn {
                             itemsIndexed(allEntries ?: emptyList()) { index, entry ->
                                 Row(
