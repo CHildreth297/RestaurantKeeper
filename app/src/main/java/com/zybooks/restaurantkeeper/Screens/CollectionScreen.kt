@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -32,6 +34,24 @@ import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
 import java.time.LocalDate
+//import com.google.gson.Gson
+
+fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: List<UserEntry>) {
+    for (i in entries.indices) {
+        val entry = entries[i]
+        // Find the corresponding entry in allEntries by matching ID
+        val matchingEntry = allEntries.find { it.id == entry.id }
+
+        // If a matching entry exists and the title is different, create a new UserEntry with updated title
+        matchingEntry?.let {
+            if (entry.title != it.title) {
+                // Create a new entry with updated title
+                entries[i] = entry.copy(title = it.title)
+            }
+        }
+    }
+}
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -45,6 +65,7 @@ fun CollectionScreen(
     db: AppDatabase,
     context: Context
 ) {
+//    val gson = Gson()
     val isNewCollection = collectionName == "" // Check if creating new
     val collectionState by collectionViewModel.collectionState.collectAsState()
 
@@ -70,7 +91,9 @@ fun CollectionScreen(
     val converters = Converters()
 
     LaunchedEffect(collectionName) {
+        Log.d("enter collectionName LE", collectionName)
         if (collectionName != "") {
+            Log.d("2 enter collectionName LE", collectionName)
             collectionViewModel.loadCollection(collectionName, db = db)
         }
     }
@@ -83,12 +106,19 @@ fun CollectionScreen(
             // Update the entries list contents instead of reassigning
             entries.clear()
 
+            Log.d("TAG", "1 print entry as string: ${collection.entries.joinToString(", ")} | List size: ${collection.entries.size}")
+
             // Something wrong here?
             for (entry in collection.entries) {
+                Log.d("loop print entry as string",entry)
                 converters.toUserEntry(entry)?.let { entries.add(it) }
             }
 
             Log.d("in for loop", "entries: $entries")
+
+            if (allEntries != null) {
+                updateEntriesWithAllEntries(entries, allEntries)
+            }
 
             createdDate = collection.createdDate
             coverImageUri = collection.coverImageUri.toString()
@@ -113,13 +143,12 @@ fun CollectionScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.Start
             ) {
@@ -149,46 +178,51 @@ fun CollectionScreen(
 
                 Log.d("CollectionScreen", "Entries: $entries")
 
-                // Display Entries in a LazyVerticalGrid (if there are any entries)
-                if (entries.isNotEmpty()) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(entries) { entry ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp)
-                                    .clickable { navController.navigate("entry/${entry.id}") },
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                                Column(
+                // **Fix: Wrap list inside a Box with weight(1f) instead of making Column scrollable**
+                Box(
+                    modifier = Modifier
+                        .weight(1f) // This ensures the grid takes up available space properly
+                ) {
+                    if (entries.isNotEmpty()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(entries) { entry ->
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(8.dp)
+                                        .clickable { navController.navigate("entry/${entry.id}") },
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
-                                    Text(
-                                        text = entry.title,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-
-                                    // Placeholder for Entry Image
-                                    Box(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(100.dp)
-                                            .background(Color.Gray),
-                                        contentAlignment = Alignment.Center
+                                            .padding(16.dp)
                                     ) {
                                         Text(
-                                            text = "Stock Image",
-                                            color = Color.White
+                                            text = entry.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(bottom = 8.dp)
                                         )
+
+                                        // Placeholder for Entry Image
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(100.dp)
+                                                .background(Color.Gray),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Stock Image",
+                                                color = Color.White
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -199,6 +233,8 @@ fun CollectionScreen(
                 // Save Button (always stays visible)
                 Button(
                     onClick = {
+                        Log.d("CollectionScreen", "Entries before saving: $entries")
+//                        val jsonEntries = gson.toJson(entries) // Convert entries list to a valid JSON string
                         collectionViewModel.saveCollection(
                             name = name,
                             description = description,
@@ -206,65 +242,71 @@ fun CollectionScreen(
                             createdDate = createdDate,
                             coverImageUri = coverImageUri,
                             onSaveComplete = {
-                                Toast.makeText(context, "Collection Saved!", Toast.LENGTH_SHORT)
-                                    .show()
+                                Log.d("CollectionScreen", "the json toString: ${entries.map { it.toString() }} | List size: ${entries.size}")
+                                Toast.makeText(context, "Collection Saved!", Toast.LENGTH_SHORT).show()
                                 homeViewModel.loadCollections(db = db)
                                 navController.navigate("home")
                             },
                             db = db
                         )
                     },
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
                     Text("Save")
                 }
             }
-            // Add the entry selection dialog here
-            if (showEntrySelection) {
-                AlertDialog(
-                    onDismissRequest = { showEntrySelection = false },
-                    title = { Text("Select Entries to Add") },
-                    text = {
-                        LazyColumn {
-                            itemsIndexed(allEntries ?: emptyList()) { index, entry ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Checkbox for selecting the entry
-                                    Checkbox(
-                                        checked = selectedEntries.contains(entry),
-                                        onCheckedChange = { isChecked ->
-                                            if (isChecked) {
-                                                if (entry != null) {
-                                                    selectedEntries.add(entry)
-                                                }
-                                            } else {
-                                                selectedEntries.remove(entry)
+        }
+
+
+
+        // Add the entry selection dialog here
+        if (showEntrySelection) {
+            AlertDialog(
+                onDismissRequest = { showEntrySelection = false },
+                title = { Text("Select Entries to Add") },
+                text = {
+
+
+                    LazyColumn {
+                        itemsIndexed(allEntries ?: emptyList()) { index, entry ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Checkbox for selecting the entry
+                                Checkbox(
+                                    checked = selectedEntries.contains(entry),
+                                    onCheckedChange = { isChecked ->
+                                        if (isChecked) {
+                                            if (entry != null) {
+                                                selectedEntries.add(entry)
                                             }
+                                        } else {
+                                            selectedEntries.remove(entry)
                                         }
-                                    )
-                                    if (entry != null) {
-                                        Text(text = entry.title)
                                     }
+                                )
+                                if (entry != null) {
+                                    Text(text = entry.title)
                                 }
                             }
                         }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showEntrySelection = false
-                                Log.d("Selected entries total", "${selectedEntries.size}")
-                                // Convert selectedEntries to UserEntry and update entries list
-                                entries.clear()
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showEntrySelection = false
+                            Log.d("Selected entries total", "${selectedEntries.size}")
+                            // Convert selectedEntries to UserEntry and update entries list
+                            entries.clear()
 
-                                for (entry in selectedEntries) {
+                            for (entry in selectedEntries) {
                                     entries.add(entry)
-                                    Log.d("selected entry", "selected entry: ${entry.title}")
-                                }
+                                Log.d("selected entry", "selected entry: ${entry.title}")
+                            }
 //                            selectedEntries.forEach { mediaItem ->
 //                                converters.toUserEntry(mediaItem.toString())?.let { userEntry ->
 //                                    Log.d("selected entry", "selected entry: ${mediaItem.title}")
@@ -272,17 +314,15 @@ fun CollectionScreen(
 //                                }
 //                            }
 
-                                // Log the updated entries
-                                // Log.d("CollectionScreen", "Updated Entries: $entries")
-                            }
-                        ) {
-                            Text("Done")
+                            // Log the updated entries
+                            // Log.d("CollectionScreen", "Updated Entries: $entries")
                         }
+                    ) {
+                        Text("Done")
                     }
+                }
 
-                )
-            }
+            )
         }
-
     }
 }
