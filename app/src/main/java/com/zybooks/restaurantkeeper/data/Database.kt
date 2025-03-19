@@ -28,24 +28,65 @@ class Converters {
         return if (value == null) null else LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
     }
 
+//    @TypeConverter
+//    fun fromString(value: String): List<String> {
+//        Log.d("Converters", "fromString - Input value: $value")
+//
+//        val result = value.split("),")
+//            .map { it.trim() + ")" }
+//            .filter { it.isNotEmpty() }
+//
+//        Log.d("Converters", "fromString - Output list: $result")
+//
+//        return result
+//    }
+
     @TypeConverter
     fun fromString(value: String): List<String> {
         Log.d("Converters", "fromString - Input value: $value")
 
-        val result = value.split("),")
-            .map { it.trim() + ")" }
-            .filter { it.isNotEmpty() }
+        // Check if the input contains "UserEntry"
+        val result: List<String> = if (value.contains("UserEntry")) {
+            Log.d("Converters", "Entered UserEntry handling block.")
+
+            // Handle serialized UserEntry list
+            value.split("),")
+                .map { it.trim() + ")" }  // Keep the closing parenthesis for UserEntry
+                .filter { it.isNotEmpty() }
+        } else {
+            Log.d("Converters", "Entered URI handling block.")
+
+            // Otherwise, treat it as a list of URIs
+            value.split(",")
+                .map {
+                    val trimmedUri = it.trim()
+
+                    // Remove the last character (closing parenthesis) if it exists
+                    val finalUri = if (trimmedUri.isNotEmpty() && trimmedUri.last() == ')') {
+                        trimmedUri.dropLast(1)
+                    } else {
+                        trimmedUri
+                    }
+
+                    finalUri
+                }
+                .filter { it.isNotEmpty() }
+        }
 
         Log.d("Converters", "fromString - Output list: $result")
-
         return result
     }
 
 
+
     @TypeConverter
     fun toString(list: List<String>): String {
-        return list.joinToString(",")
+        Log.d("Converters", "toString - Input list: $list")
+        val result = list.joinToString(",")
+        Log.d("Converters", "toString - Output value: $result")
+        return result
     }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun fromUserEntryList(value: List<UserEntry>?): String? {

@@ -34,7 +34,7 @@ import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry
 import java.time.LocalDate
-import com.google.gson.Gson
+//import com.google.gson.Gson
 
 fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: List<UserEntry>) {
     for (i in entries.indices) {
@@ -65,7 +65,7 @@ fun CollectionScreen(
     db: AppDatabase,
     context: Context
 ) {
-    val gson = Gson()
+//    val gson = Gson()
     val isNewCollection = collectionName == "" // Check if creating new
     val collectionState by collectionViewModel.collectionState.collectAsState()
 
@@ -234,7 +234,7 @@ fun CollectionScreen(
                 Button(
                     onClick = {
                         Log.d("CollectionScreen", "Entries before saving: $entries")
-                        val jsonEntries = gson.toJson(entries) // Convert entries list to a valid JSON string
+//                        val jsonEntries = gson.toJson(entries) // Convert entries list to a valid JSON string
                         collectionViewModel.saveCollection(
                             name = name,
                             description = description,

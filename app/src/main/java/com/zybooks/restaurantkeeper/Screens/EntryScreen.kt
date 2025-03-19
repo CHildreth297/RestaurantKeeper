@@ -95,6 +95,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import coil.compose.rememberImagePainter
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(
@@ -196,9 +197,15 @@ fun EntryScreen(
     val photoPickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris: List<Uri> ->
-        // Instead of reassigning, modify the photoUris list directly
-        photoUris.clear()  // Clear existing photos
-        photoUris.addAll(uris)  // Add new photos
+        Log.d("photoPickLauncher", "Selected URIs: $uris")
+        // Clear existing photos first
+        photoUris.clear()
+
+        // Use a for loop to add the URIs one by one
+        for (uri in uris) {
+            photoUris.add(uri)
+        }
+
     }
 
     // date formatter
