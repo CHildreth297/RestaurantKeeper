@@ -65,3 +65,5 @@ The below figma ended up most closely resembling how we ended up showing an empt
 ## Other comments
 
 There was one tough bug we were unable to resolve within the submission deadline which involves permissions of re-loading photos when the user leaves the app and comes back. Specifically, the URIs of the images of the food are correctly stored, but there seems to be an issue loading them outside of the PickMultipleVisualMedia. So within one session of usage of the app, photos will be visible but if you leave the app and come back, you will have to unfortunately re-select them as otherwise they will not be visible. 
+
+There might be a slight delay in photos loading on entry page when selected. Once an entry is saved, photo(s) should definitely pop up.
