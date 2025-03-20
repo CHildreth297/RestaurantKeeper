@@ -1,7 +1,7 @@
 # RememberYourFood
 
 ## Description
-Our restaurant tracker is a diary that keeps track of the restaurants you’ve eaten. Each entry records the title, location, date of eating there, rating, comments and photos of the food you ordered. Each entry can be placed into a collection, organized by trips, cities, or whatever else you want.  With this app, you can remember your favorite places or least places to eat from in an organized space. 
+Our restaurant tracker is a diary that keeps track of the restaurants you’ve eaten at, allowing you to record the title, location, date, rating, comments, and photos of the food you ordered. Entries can be organized into collections based on trips, cities, or any other category you choose, helping you remember your favorite spots or places to avoid. Data persists even if the app is closed and reopened, ensuring your entries and collections remain saved, though photos may have some limitations (see the "Other comments" section about this). You can manually enter a location or allow the app to retrieve it automatically with your permission.
 
 ## Figma
 
