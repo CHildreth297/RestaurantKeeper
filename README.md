@@ -47,17 +47,21 @@ The below figma ended up most closely resembling how we ended up showing an empt
 - LocalDate
 
 ## Dependencies / Android SDK Versions
-- Compile SDK = 35
-- TargetSDK = 34
-- Android SDK = Android 12.0 ("S")
-- API Level = 31
 
-- Emulator runs Android 15.0
-- API level is 35
-- AvdId = Medium_Phone_API_35
-- Android Emulator Version 35.2.10
-- Android SDK Platform Tools Version 35.0.2
+### App Dependencies & Configuration
+- **Compile SDK:** 35  
+- **Target SDK:** 34  
+- **Minimum SDK:** (Not specified, but likely Android 12 or lower)  
+- **Android SDK Version:** Android 12.0 ("S")  
+- **API Level:** 31  
+
+### Emulator Dependencies & Configuration
+- **Android Version:** Android 15.0  
+- **API Level:** 35  
+- **AVD ID:** `Medium_Phone_API_35`  
+- **Android Emulator Version:** 35.2.10  
+- **Android SDK Platform Tools Version:** 35.0.2  
 
 ## Other comments
 
-There was one narly bug we were unable to resolve within the submission deadline which involves permissions of re-loading photos when the user leaves the app and comes back. Specifically, the URIs of the images of the food are correctly stored, but there seems to be an issue loading them outside of the PickMultipleVisualMedia. So within one session of usage of the app, photos will be visible but if you leave the app and come back, you will have to unfortunately re-select them as otherwise they will not be visible. 
+There was one tough bug we were unable to resolve within the submission deadline which involves permissions of re-loading photos when the user leaves the app and comes back. Specifically, the URIs of the images of the food are correctly stored, but there seems to be an issue loading them outside of the PickMultipleVisualMedia. So within one session of usage of the app, photos will be visible but if you leave the app and come back, you will have to unfortunately re-select them as otherwise they will not be visible. 
