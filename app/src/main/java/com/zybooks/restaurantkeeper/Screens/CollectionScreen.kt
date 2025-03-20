@@ -52,11 +52,25 @@ fun updateEntriesWithAllEntries(entries: MutableList<UserEntry>, allEntries: Lis
         // Find the corresponding entry in allEntries by matching ID
         val matchingEntry = allEntries.find { it.id == entry.id }
 
-        // If a matching entry exists and the title is different, create a new UserEntry with updated title
+        // If a matching entry exists and either the title or the photos list is different, update it
         matchingEntry?.let {
+            var updated = false
+
+            // Check if the title is different
             if (entry.title != it.title) {
-                // Create a new entry with updated title
                 entries[i] = entry.copy(title = it.title)
+                updated = true
+            }
+
+            // Check if the photos list is different
+            if (entry.photos != it.photos) {
+                entries[i] = entry.copy(photos = it.photos)
+                updated = true
+            }
+
+            // You can log or do something with `updated` if needed
+            if (updated) {
+                println("Updated entry: ${entry.id}")
             }
         }
     }

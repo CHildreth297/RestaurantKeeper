@@ -64,6 +64,7 @@ import com.zybooks.restaurantkeeper.HomeViewModel
 import com.zybooks.restaurantkeeper.MediaItem
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import androidx.core.net.toUri
+import com.zybooks.restaurantkeeper.data.UserEntry
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -80,6 +81,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
         viewModel.loadEntries(db) // Reload entries when screen becomes active
         viewModel.loadCollections(db)
     }
+
+    val allEntries: List<UserEntry>? = viewModel.getAllEntries()
 
     Scaffold(
         topBar = {
@@ -181,6 +184,10 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                                         ) {
                                             val imageUri = item.photos.firstOrNull()?.toUri()
 
+                                            Log.d("MediaItem is Entry cover photo",
+                                                imageUri.toString()
+                                            )
+
                                             if (imageUri != null) {
                                                 AsyncImage(
                                                     model = ImageRequest.Builder(context)
@@ -205,6 +212,11 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                                 }
                             }
                             is MediaItem.Collection -> {
+
+                                if (allEntries != null) {
+                                    updateEntriesWithAllEntries(item.entries as MutableList<UserEntry>, allEntries)
+                                }
+
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -224,24 +236,73 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(),
                                         )
 
                                         // 2x2 Grid of Stock Images
+//                                        Column {
+//                                            repeat(2) { row ->
+//                                                Row(
+//                                                    modifier = Modifier.fillMaxWidth(),
+//                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+//                                                ) {
+//                                                    repeat(2) { col ->
+//                                                        Box(
+//                                                            modifier = Modifier
+//                                                                .weight(1f)
+//                                                                .aspectRatio(1f)
+//                                                                .background(Color.Gray), // Placeholder color
+//                                                            contentAlignment = Alignment.Center
+//                                                        ) {
+//                                                            Text(
+//                                                                text = "Stock Image",
+//                                                                color = Color.White
+//                                                            )
+//                                                        }
+//                                                    }
+//                                                }
+//                                                Spacer(modifier = Modifier.height(8.dp)) // Spacing between rows
+//                                            }
+//                                        }
                                         Column {
+                                            val context = LocalContext.current
+                                            val images = item.entries.mapNotNull { it.photos.firstOrNull()?.toUri() }.take(4) // Get first image of each entry
+                                            val totalImages = images.size
+
+                                            Log.d("Entries image debug", "Entries: ${item.entries}")
+                                            Log.d("ImageDebug", "Images: $images")
+                                            Log.d("ImageDebug", "Total Images: $totalImages")
+
                                             repeat(2) { row ->
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
                                                     repeat(2) { col ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .aspectRatio(1f)
-                                                                .background(Color.Gray), // Placeholder color
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "Stock Image",
-                                                                color = Color.White
+                                                        val index = row * 2 + col
+                                                        if (index < totalImages) {
+                                                            val imageUri = images[index]
+                                                            AsyncImage(
+                                                                model = ImageRequest.Builder(context)
+                                                                    .data(imageUri)
+                                                                    .crossfade(true)
+                                                                    .build(),
+                                                                contentDescription = "Entry Image",
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .aspectRatio(1f),
+                                                                contentScale = ContentScale.Crop
                                                             )
+                                                        } else {
+                                                            // Show stock image if there aren't enough real images
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .aspectRatio(1f)
+                                                                    .background(Color.Gray),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "Stock Image",
+                                                                    color = Color.White
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
