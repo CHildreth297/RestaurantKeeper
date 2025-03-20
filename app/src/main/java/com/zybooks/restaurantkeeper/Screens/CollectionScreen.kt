@@ -1,13 +1,9 @@
 package com.zybooks.restaurantkeeper.Screens
 
 import android.content.Context
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -19,8 +15,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -37,9 +31,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.zybooks.restaurantkeeper.CollectionViewModel
-import com.zybooks.restaurantkeeper.HomeViewModel
-import com.zybooks.restaurantkeeper.MediaItem
+import com.zybooks.restaurantkeeper.ViewModels.CollectionViewModel
+import com.zybooks.restaurantkeeper.ViewModels.HomeViewModel
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.Converters
 import com.zybooks.restaurantkeeper.data.UserEntry

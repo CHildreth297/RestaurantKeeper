@@ -1,6 +1,5 @@
 package com.zybooks.restaurantkeeper.Screens
 
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -60,8 +59,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.zybooks.restaurantkeeper.HomeViewModel
-import com.zybooks.restaurantkeeper.MediaItem
+import com.zybooks.restaurantkeeper.ViewModels.HomeViewModel
+import com.zybooks.restaurantkeeper.ViewModels.MediaItem
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import androidx.core.net.toUri
 import com.zybooks.restaurantkeeper.data.UserEntry

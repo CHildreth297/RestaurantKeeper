@@ -1,19 +1,16 @@
-package com.zybooks.restaurantkeeper
+package com.zybooks.restaurantkeeper.ViewModels
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zybooks.restaurantkeeper.MediaItem
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.data.UserCollection
-import com.zybooks.restaurantkeeper.data.UserEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import com.zybooks.restaurantkeeper.data.UserCollectionDao
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

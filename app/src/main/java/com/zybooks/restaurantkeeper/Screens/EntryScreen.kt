@@ -2,7 +2,6 @@ package com.zybooks.restaurantkeeper.Screens
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -78,7 +77,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -89,15 +87,14 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.model.LatLng
-import com.zybooks.restaurantkeeper.EntryViewModel
-import com.zybooks.restaurantkeeper.HomeViewModel
+import com.zybooks.restaurantkeeper.ViewModels.EntryViewModel
+import com.zybooks.restaurantkeeper.ViewModels.HomeViewModel
 import com.zybooks.restaurantkeeper.data.AppDatabase
 import com.zybooks.restaurantkeeper.ui.theme.Purple40
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import coil.compose.rememberImagePainter
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(

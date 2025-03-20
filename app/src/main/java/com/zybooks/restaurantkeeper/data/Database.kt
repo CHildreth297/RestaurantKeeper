@@ -11,7 +11,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.zybooks.restaurantkeeper.MediaItem
+import com.zybooks.restaurantkeeper.ViewModels.MediaItem
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate

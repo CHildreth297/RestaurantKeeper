@@ -1,4 +1,4 @@
-package com.zybooks.restaurantkeeper
+package com.zybooks.restaurantkeeper.ViewModels
 
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
@@ -10,8 +10,6 @@ import android.location.Geocoder
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
